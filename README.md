@@ -4,11 +4,6 @@
 
 This explains how to run the app with Expo.
 
-To use database features, create a `.env` file in the project root and set the following environment variables:
-
-- `EXPO_PUBLIC_SUPABASE_URL=your_url`
-- `EXPO_PUBLIC_SUPABASE_ANON_KEY=your_anon_key`
-
 ## Requirements
 
 - Node.js
