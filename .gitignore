@@ -95,3 +95,101 @@ google-services.json
 # ---------------------------
 *.orig.*
 app-example
+
+# ---------------------------
+# Node / Expo / React Native
+# ---------------------------
+node_modules/
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+.metro-health-check*
+*.tsbuildinfo
+
+# Local env files
+.env*.local
+.env
+
+# Logs
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+
+# ---------------------------
+# Android / React Native native
+# Keep /android and /ios ONLY if you commit native code
+# Remove these two lines if you want generated native folders ignored
+# ---------------------------
+.gradle/
+build/
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+*.aab
+*.apk
+output-metadata.json
+*.hprof
+.kotlin/
+
+# ---------------------------
+# IntelliJ / Android Studio / VS Code
+# ---------------------------
+*.iml
+.idea/
+.vscode/
+misc.xml
+deploymentTargetDropDown.xml
+render.experimental.xml
+
+# ---------------------------
+# Secrets / signing / platform keys
+# ---------------------------
+*.jks
+*.keystore
+*.p8
+*.p12
+*.key
+*.pem
+*.mobileprovision
+google-services.json
+
+# ---------------------------
+# iOS / Android generated native folders
+# Ignore these only for Expo managed/prebuild workflow
+# Comment them out if you keep native code in repo
+# ---------------------------
+/android
+/ios
+
+# ---------------------------
+# .NET / ASP.NET Core Web API
+# ---------------------------
+**/bin/
+**/obj/
+**/.vs/
+*.user
+*.rsuser
+*.suo
+
+# App settings / local secrets
+**/appsettings.Development.json
+**/secrets.json
+
+# EF Core / local DB artifacts
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# ---------------------------
+# Misc
+# ---------------------------
+*.orig.*
+app-example
