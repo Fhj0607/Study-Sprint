@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { Session } from "@supabase/supabase-js";
-import { Redirect, Tabs } from "expo-router";
+import { Tabs } from "expo-router";
 import { useEffect, useState } from "react";
 
 export default function TabLayout() {
@@ -27,9 +27,9 @@ export default function TabLayout() {
     return null;
   }
 
-  if (!session) {
-    return <Redirect href="/createUser" />;
-  }
+ //   if (!session) {
+ //     return <Redirect href="/createUser" />;
+ //   }
 
   return (
     <Tabs>

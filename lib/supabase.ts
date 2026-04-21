@@ -5,6 +5,14 @@ import 'react-native-url-polyfill/auto';
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
 
+if (!supabaseUrl) {
+  throw new Error('Missing EXPO_PUBLIC_SUPABASE_URL');
+}
+
+if (!supabaseKey) {
+  throw new Error('Missing EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY');
+}
+
 const SecureStoreAdapter = {
   getItem: async (key: string) => {
     return await SecureStore.getItemAsync(key);

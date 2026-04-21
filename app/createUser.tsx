@@ -20,7 +20,7 @@ export default function CreateUser() {
     });
 
     if (error) {
-      Alert.alert("User could not be created, please try again");
+      Alert.alert(error.message, "User could not be created, please try again");
       return;
     }
 
