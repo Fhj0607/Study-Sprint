@@ -8,7 +8,7 @@ export default function HomeScreen() {
     <View style={defaultStyles.container}>
       <Stack.Screen
         options={{
-          title: "Tasks",
+          title: "Home",
           headerTitleStyle: defaultStyles.title,
           headerRight: () => {
             return (

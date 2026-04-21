@@ -7,13 +7,12 @@ import { ActivityIndicator, Alert, Button, Keyboard, KeyboardAvoidingView, Platf
 export default function CreateTask() {
   const [title, SetTitle] = useState('');
   const [description, SetDescription] = useState('');
-  const [isCompleted, SetIsCompleted] = useState(false);
-  const [deadline, SetDeadline] = useState('');
+  const [isActive, SetIsActive] = useState(true);
   const [isSaving, SetIsSaving] = useState(false);
 
-  const AddNote = async () => {
-    if(title.trim() === '' || description.trim() === '' || deadline.trim() === '') {
-      Alert.alert("All fields are required!");
+  const CreateSubject = async () => {
+    if(title.trim() === '') {
+      Alert.alert("Title is required!");
       return;
     }
         
@@ -26,27 +25,24 @@ export default function CreateTask() {
 
     SetIsSaving(true);
 
-    const { error: dbError } = await supabase.from("tasks").insert({
+    const { error: dbError } = await supabase.from("subjects").insert({
       title,
       description,
-      isCompleted,
+      isActive,
       lastChanged: new Date().toISOString(),
-      deadline,
       uId: data.user.id,
     });
 
     if (dbError) {
-      Alert.alert("Task could not be created, please try again");
-      SetIsSaving(false);
+      Alert.alert("Subject could not be created, please try again");
       return;
     }
 
-    Alert.alert("Task successfully added!");
+    Alert.alert("Subject successfully created!");
 
     SetTitle('');
     SetDescription('');
-    SetIsCompleted(false);
-    SetDeadline('');
+    SetIsActive(false);
 
     SetIsSaving(false);
 
@@ -57,13 +53,13 @@ export default function CreateTask() {
     <>
       <Stack.Screen
         options={{
-          title: "Create Task",
+          title: "Create Subject",
           headerTitleStyle: defaultStyles.title
         }}
       />
 
       <View style={defaultStyles.container}>
-        <Text style={defaultStyles.title}>Create New Task</Text>
+        <Text style={defaultStyles.title}>Create New Subject</Text>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <View style={defaultStyles.container}>
@@ -79,23 +75,17 @@ export default function CreateTask() {
                 value={description}
                 onChangeText={SetDescription}
               />
-              <TextInput
-                style={defaultStyles.inputText}
-                placeholder="Deadline (YYYY-MM-DD)"
-                value={deadline}
-                onChangeText={SetDeadline}
-              />
               <Pressable
-                onPress={() => SetIsCompleted(state => !state)}
+                onPress={() => SetIsActive(state => !state)}
                 style={defaultStyles.checkboxContainer}
               >
                 <View style={defaultStyles.checkbox}>
-                  {isCompleted && <Text style={defaultStyles.checkboxMark}>✓</Text>}
+                  {isActive && <Text style={defaultStyles.checkboxMark}>✓</Text>}
                 </View>
-                <Text style={defaultStyles.checkboxLabel}>{isCompleted ? 'Completed' : 'Not completed'}</Text>
+                <Text style={defaultStyles.checkboxLabel}>{isActive ? 'Active' : 'Inactive'}</Text>
               </Pressable>
 
-              <Button title={isSaving ? "Saving..." : "Save"} onPress={AddNote} disabled={isSaving} />
+              <Button title={isSaving ? "Saving..." : "Save"} onPress={CreateSubject} disabled={isSaving} />
               {isSaving && (
                 <ActivityIndicator size="large" />
               )}
