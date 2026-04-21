@@ -1,43 +1,20 @@
 import { defaultStyles } from '@/constants/defaultStyles';
 import { supabase } from '@/lib/supabase';
-import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import { ActivityIndicator, Alert, Button, Keyboard, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, TouchableWithoutFeedback, View } from 'react-native';
 
-export default function EditTask() {
+export default function CreateAssignment() {
+  const sId = (useLocalSearchParams().sId as string) ?? null;
   const [title, SetTitle] = useState('');
   const [description, SetDescription] = useState('');
-  const [isCompleted, SetIsCompleted] = useState(false);
   const [deadline, SetDeadline] = useState('');
+  const [isCompleted, SetIsCompleted] = useState(false);
   const [isSaving, SetIsSaving] = useState(false);
-  const { tId } = useLocalSearchParams();
 
-  useFocusEffect(
-    useCallback(() => {
-      const GetTask = async () => {
-        if (!tId) return;
-
-        const { data, error } = await supabase.from("tasks").select("*").eq("tId", tId).single();
-
-        if (error) {
-          Alert.alert("Task not found");
-          return;
-        }
-
-        if (data) {
-          SetTitle(data.title);
-          SetDescription(data.description);
-          SetIsCompleted(data.isCompleted);
-          SetDeadline(data.deadline);
-        }
-      }
-      GetTask();
-    }, [tId])
-  );
-
-  const EditTask = async () => {
-    if(title.trim() === '' || description.trim() === '' || deadline.trim() === '') {
-      Alert.alert("All fields are required!");
+  const CreateAssignment = async () => {
+    if(title.trim() === '' || deadline.trim() === '') {
+      Alert.alert("Title and deadline are required!");
       return;
     }
         
@@ -50,26 +27,27 @@ export default function EditTask() {
 
     SetIsSaving(true);
 
-    const { error: dbError } = await supabase.from("tasks").update({
+    const { error: dbError } = await supabase.from("assignments").insert({
       title,
       description,
+      deadline,
       isCompleted,
       lastChanged: new Date().toISOString(),
-      deadline,
       uId: data.user.id,
-    }).eq("tId", tId);
+      sId: sId,
+    });
 
     if (dbError) {
-      Alert.alert("Task could not be edited, please try again");
+      Alert.alert("Assignment could not be created, please try again");
       return;
     }
 
-    Alert.alert("Task successfully edited!");
+    Alert.alert("Assignment successfully created!");
 
     SetTitle('');
     SetDescription('');
-    SetIsCompleted(false);
     SetDeadline('');
+    SetIsCompleted(false);
 
     SetIsSaving(false);
 
@@ -80,25 +58,25 @@ export default function EditTask() {
     <>
       <Stack.Screen
         options={{
-          title: "Edit Task",
+          title: "Create Assignment",
           headerTitleStyle: defaultStyles.title
         }}
       />
 
       <View style={defaultStyles.container}>
-        <Text style={defaultStyles.title}>Edit Task</Text>
+        <Text style={defaultStyles.title}>Create New Assignment</Text>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <View style={defaultStyles.container}>
               <TextInput
                 style={defaultStyles.inputText}
-                placeholder="Title"
+                placeholder="Enter title"
                 value={title}
                 onChangeText={SetTitle}
               />
               <TextInput
                 style={defaultStyles.inputText}
-                placeholder="Text"
+                placeholder="Enter description"
                 value={description}
                 onChangeText={SetDescription}
               />
@@ -118,7 +96,7 @@ export default function EditTask() {
                 <Text style={defaultStyles.checkboxLabel}>{isCompleted ? 'Completed' : 'Not completed'}</Text>
               </Pressable>
 
-              <Button title={isSaving ? "Saving..." : "Save"} onPress={EditTask} disabled={isSaving} />
+              <Button title={isSaving ? "Saving..." : "Save"} onPress={CreateAssignment} disabled={isSaving} />
               {isSaving && (
                 <ActivityIndicator size="large" />
               )}

@@ -6,23 +6,22 @@ import { router, Stack, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Button, Pressable, SectionList, Text, View } from "react-native";
 
-type Task = {
-  tId: string;
+type Subject = {
+  sId: string;
   title: string;
   description: string;
-  isCompleted: boolean;
+  isActive: boolean;
   lastChanged: string;
   uId: string;
-  aId: string;
 }
 
-export default function Tasks() {
-  const [tasks, SetTasks] = useState<Task[]>([])
+export default function Subjects() {
+  const [subjects, SetSubject] = useState<Subject[]>([])
   const [session, SetSession] = useState<Session | null>(null)
 
-  const taskSections = [
-    { title: "Upcoming Tasks", data: tasks.filter((task) => !task.isCompleted), emptyMessage: "No upcoming tasks" },
-    { title: "Completed Tasks", data: tasks.filter((task) => task.isCompleted), emptyMessage: "No completed tasks" },
+  const subjectSections = [
+    { title: "Active Subjects", data: subjects.filter((subject) => !subject.isActive), emptyMessage: "No active subjects" },
+    { title: "Inactive Subjects", data: subjects.filter((subject) => subject.isActive), emptyMessage: "No inactive subjects" },
   ];
 
   useEffect(() => {
@@ -34,29 +33,29 @@ export default function Tasks() {
     },
   [])
 
-  const GetTasks = async () => { 
-    const { data, error } = await supabase.from("tasks").select("*");
+  const GetSubjects = async () => { 
+    const { data, error } = await supabase.from("subjects").select("*");
 
     if (error) {
-      Alert.alert("Tasks could not be fetched, please try again");
+      Alert.alert("Subjects could not be fetched, please try again");
       return;
     }
 
-    SetTasks(data ?? []);
+    SetSubject(data ?? []);
   }
 
   useFocusEffect(
     useCallback(() => {
       if (session) {
-        GetTasks();
+        GetSubjects();
       }
     }, [session])
   );
 
-  const DeleteTask = async (tId: string) => {
+  const DeleteSubject = async (sId: string) => {
     Alert.alert(
-      "Delete Task",
-      "Are you sure you want to delete this task?",
+      "Delete Subject",
+      "Are you sure you want to delete this subject?",
       [
         {
           text: "Cancel",
@@ -66,15 +65,15 @@ export default function Tasks() {
           text: "Delete",
           style: "destructive",
           onPress: async () => {
-            const { error } = await supabase.from("tasks").delete().eq("tId", tId);
+            const { error } = await supabase.from("subjects").delete().eq("sId", sId);
 
             if (error) {
-              Alert.alert("Task could not be deleted, please try again");
+              Alert.alert("Subject could not be deleted, please try again");
               return;
             }
 
-            Alert.alert("Task deleted successfully!");
-            GetTasks();
+            Alert.alert("Subject deleted successfully!");
+            GetSubjects();
           }
         }
       ]
@@ -85,12 +84,12 @@ export default function Tasks() {
     <View style={defaultStyles.container}>
       <Stack.Screen
         options={{
-          title: "Tasks",
+          title: "Subjects",
           headerTitleStyle: defaultStyles.title,
           headerRight: () => {
             return (
               <View style={defaultStyles.buttonContainer}>
-                <Pressable style={defaultStyles.circularButton} onPress={GetTasks}>
+                <Pressable style={defaultStyles.circularButton} onPress={GetSubjects}>
                   <Ionicons name="refresh" size={22} color="#333" />
                 </Pressable>
                 <Button title="Logout" onPress={async () => await supabase.auth.signOut()} />
@@ -101,29 +100,29 @@ export default function Tasks() {
       />
 
       <View style={defaultStyles.buttonContainer}>
-        <Button title="Create Task" onPress={() => router.push("/task/createTask")} />
+        <Button title="Create Subject" onPress={() => router.push("/subject/createSubject")} />
       </View>
 
       <SectionList
-        sections={taskSections}
-        keyExtractor={(item) => item.tId}
+        sections={subjectSections}
+        keyExtractor={(item) => item.sId}
         renderSectionHeader={({ section: { title } }) => <Text style={defaultStyles.subtitle}>{title}</Text>}
         renderItem={({ item }) => {
           const isOwner = session?.user.id === item.uId;
 
           return (
             <View style={defaultStyles.container}>
-              <Pressable style={defaultStyles.container} onPress={() => router.push({pathname: "/task/viewDetailsTask", params: { tId: item.tId }})}>
-                <Text style={defaultStyles.boldBody}>{item.title}</Text>
+              <Pressable style={defaultStyles.buttonContainer} onPress={() => router.push({pathname: "/subject/viewDetailsSubject", params: { sId: item.sId }})}>
+                <Text style={defaultStyles.title}>{item.title}</Text>
                 <View style={defaultStyles.checkbox}>
-                  {item.isCompleted && <Text style={defaultStyles.checkboxMark}>✓</Text>}
+                  {item.isActive && <Text style={defaultStyles.checkboxMark}>✓</Text>}
                 </View>
               </Pressable>
-
+              
               {isOwner && (
                 <View style={defaultStyles.buttonContainer}>
-                  <Button title="Edit" onPress={() => router.push({pathname: "/task/editTask", params: { tId: item.tId }})} />
-                  <Button title="Delete" onPress={() => DeleteTask(item.tId)} />
+                  <Button title="Edit" onPress={() => router.push({pathname: "/subject/editSubject", params: { sId: item.sId }})} />
+                  <Button title="Delete" onPress={() => DeleteSubject(item.sId)} />
                 </View>
               )}
             </View>

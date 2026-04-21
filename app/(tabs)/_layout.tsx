@@ -33,8 +33,10 @@ export default function TabLayout() {
 
   return (
     <Tabs>
-      <Tabs.Screen name="index" options={{title: "Today"}} />
+      <Tabs.Screen name="index" options={{title: "Index"}} />
       <Tabs.Screen name="tasks" options={{title: "Tasks"}} />
+      <Tabs.Screen name="assignments" options={{title: "Assignments"}} />
+      <Tabs.Screen name="subjects" options={{title: "Subjects"}} />
     </Tabs>
   );
 }
