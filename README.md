@@ -6,7 +6,7 @@ This explains how to run the app with Expo.
 
 ## Requirements
 
-- Node.js
+- Node.js 20.19.4 or newer
 - npm
 - Expo CLI
 - Android Studio with an emulator OR Expo Go on a phone
