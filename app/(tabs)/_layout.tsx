@@ -3,6 +3,7 @@ import { Session } from "@supabase/supabase-js";
 import { Tabs } from "expo-router";
 import { useEffect, useState } from "react";
 
+
 export default function TabLayout() {
   const [session, SetSession] = useState<Session | null>(null)
   const [loading, SetLoading] = useState(true);

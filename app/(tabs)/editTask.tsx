@@ -1,4 +1,3 @@
-import { defaultStyles } from '@/constants/defaultStyles';
 import { supabase } from '@/lib/supabase';
 import {
   router,
@@ -15,11 +14,10 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   TouchableWithoutFeedback,
-  View
+  View,
 } from 'react-native';
 
 export default function EditTask() {
@@ -66,84 +64,103 @@ export default function EditTask() {
     }, [taskId])
   );
 
-  const handleSaveTask = async () => { 
+  const handleSaveTask = async () => {
     if (!title.trim() || !description.trim() || !deadline.trim()) {
-      Alert.alert("All fields are required!");
+      Alert.alert('All fields are required!');
       return;
     }
+
     setIsSaving(true);
 
     try {
       const { data: userData, error: userError } = await supabase.auth.getUser();
+
       if (userError || !userData.user) {
-        router.replace("../createUser");
+        router.replace('../createUser');
         return;
       }
-      const { error: dbError } = await supabase.from("tasks").update({
-        title,
-        description,
-        isCompleted,
-        lastChanged: new Date().toISOString(),
-        deadline,
-        uId: userData.user.id,
-      }).eq("tId", taskId);
+
+      const { error: dbError } = await supabase
+        .from('tasks')
+        .update({
+          title: title.trim(),
+          description: description.trim(),
+          isCompleted,
+          lastChanged: new Date().toISOString(),
+          deadline: deadline.trim(),
+          uId: userData.user.id,
+        })
+        .eq('tId', taskId);
 
       if (dbError) {
-        Alert.alert("Task could not be edited, please try again");
+        Alert.alert('Task could not be edited, please try again');
         return;
       }
-      Alert.alert("Task successfully edited!");
+
+      Alert.alert('Task successfully edited!');
       router.back();
     } finally {
       setIsSaving(false);
-    } 
+    }
   };
 
   return (
     <>
       <Stack.Screen
         options={{
-          title: "Edit Task",
-          headerTitleStyle: defaultStyles.title
+          title: 'Edit Task',
+          headerTitleStyle: {
+            fontSize: 20,
+            fontWeight: '700',
+          },
         }}
       />
 
-      <KeyboardAvoidingView 
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      <KeyboardAvoidingView
+        className="flex-1 bg-gray-100"
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <ScrollView 
-            style={defaultStyles.container}
-            keyboardShouldPersistTaps="handled"  
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            contentContainerClassName="flex-grow justify-center px-5 py-8"
           >
-            <View style={styles.card}>
-              <Text style={defaultStyles.title}>Edit Task</Text>
-              <Text style={styles.subtitle}>Update your task details below.</Text>
+            <View className="rounded-3xl bg-white p-6 shadow-lg">
+              <Text className="mb-1 text-3xl font-bold text-gray-900">
+                Edit Task
+              </Text>
+
+              <Text className="mb-6 text-base text-gray-500">
+                Update the details for this task.
+              </Text>
 
               {isLoading ? (
-                <View style={styles.loadingContainer}>
+                <View className="items-center justify-center py-12">
                   <ActivityIndicator size="large" />
-                  <Text style={styles.loadingText}>Loading task...</Text>
+                  <Text className="mt-3 text-gray-500">Loading task...</Text>
                 </View>
               ) : (
                 <>
-                <View style={styles.field}>
-                  <Text style={styles.label}>Title</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Enter task title"
-                    value={title}
-                    onChangeText={setTitle}
-                  />
-                </View>
-
-                 <View style={styles.field}>
-                    <Text style={styles.label}>Description</Text>
+                  <View className="mb-4">
+                    <Text className="mb-2 text-sm font-semibold text-gray-700">
+                      Title
+                    </Text>
                     <TextInput
-                      style={[styles.input, styles.textArea]}
-                      placeholder="Enter task description"
+                      className="rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-base text-gray-900"
+                      placeholder="Enter title"
+                      placeholderTextColor="#9ca3af"
+                      value={title}
+                      onChangeText={setTitle}
+                    />
+                  </View>
+
+                  <View className="mb-4">
+                    <Text className="mb-2 text-sm font-semibold text-gray-700">
+                      Description
+                    </Text>
+                    <TextInput
+                      className="min-h-28 rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-base text-gray-900"
+                      placeholder="Enter description"
                       placeholderTextColor="#9ca3af"
                       value={description}
                       onChangeText={setDescription}
@@ -152,10 +169,12 @@ export default function EditTask() {
                     />
                   </View>
 
-                  <View style={styles.field}>
-                    <Text style={styles.label}>Deadline</Text>
+                  <View className="mb-4">
+                    <Text className="mb-2 text-sm font-semibold text-gray-700">
+                      Deadline
+                    </Text>
                     <TextInput
-                      style={styles.input}
+                      className="rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-base text-gray-900"
                       placeholder="YYYY-MM-DD"
                       placeholderTextColor="#9ca3af"
                       value={deadline}
@@ -164,52 +183,57 @@ export default function EditTask() {
                   </View>
 
                   <Pressable
-                    style={[
-                      styles.checkboxContainer,
-                      isCompleted && styles.checkboxContainerActive,
-                    ]}
+                    className={`mb-6 flex-row items-center rounded-xl border p-4 ${
+                      isCompleted
+                        ? 'border-blue-600 bg-blue-50'
+                        : 'border-gray-300 bg-gray-50'
+                    }`}
                     onPress={() => setIsCompleted((current) => !current)}
                   >
-                     <View
-                      style={[
-                        styles.checkbox,
-                        isCompleted && styles.checkboxActive,
-                      ]}
+                    <View
+                      className={`mr-3 h-6 w-6 items-center justify-center rounded-md border-2 ${
+                        isCompleted
+                          ? 'border-blue-600 bg-blue-600'
+                          : 'border-gray-400 bg-white'
+                      }`}
                     >
-                      {isCompleted && <Text style={styles.checkboxMark}>✓</Text>}
+                      {isCompleted && (
+                        <Text className="text-base font-bold text-white">✓</Text>
+                      )}
                     </View>
 
-                    <Text style={styles.checkboxLabel}>
+                    <Text className="text-base font-semibold text-gray-900">
                       {isCompleted ? 'Completed' : 'Not completed'}
                     </Text>
                   </Pressable>
 
-                   <View style={styles.buttonGroup}>
-                    <Pressable
-                      style={[
-                        styles.primaryButton,
-                        isSaving && styles.disabledButton,
-                      ]}
-                      onPress={handleSaveTask}
-                      disabled={isSaving}
-                    >
-                      <Text style={styles.primaryButtonText}>
-                        {isSaving ? 'Saving...' : 'Save Changes'}
-                      </Text>
-                    </Pressable>
+                  <Pressable
+                    className={`h-14 items-center justify-center rounded-2xl ${
+                      isSaving ? 'bg-blue-400' : 'bg-blue-600'
+                    }`}
+                    onPress={handleSaveTask}
+                    disabled={isSaving}
+                  >
+                    <Text className="text-base font-bold text-white">
+                      {isSaving ? 'Saving...' : 'Save Changes'}
+                    </Text>
+                  </Pressable>
 
                   {isSaving && (
-                    <ActivityIndicator size="small" />
+                    <View className="mt-4">
+                      <ActivityIndicator size="small" />
+                    </View>
                   )}
 
-                   <Pressable
-                      style={styles.secondaryButton}
-                      onPress={() => router.back()}
-                      disabled={isSaving}
-                    >
-                      <Text style={styles.secondaryButtonText}>Cancel</Text>
-                    </Pressable>
-                  </View>
+                  <Pressable
+                    className="mt-3 h-14 items-center justify-center rounded-2xl bg-gray-200"
+                    onPress={() => router.back()}
+                    disabled={isSaving}
+                  >
+                    <Text className="text-base font-bold text-gray-900">
+                      Cancel
+                    </Text>
+                  </Pressable>
                 </>
               )}
             </View>
@@ -219,134 +243,3 @@ export default function EditTask() {
     </>
   );
 }
-
-const styles = StyleSheet.create({
-
-  screen: {
-    flex: 1,
-    backgroundColor: 'f3f4f6'
-  },
-  container: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: 20,
-  },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5, 
-  },
-  subtitle: {
-    fontSize: 15,
-    color: '#6b7280',
-    marginBottom: 24,
-  },
-  loadingContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
-    gap: 12,
-  },
-  loadingText: {
-    color: '#6b7280',
-    fontSize: 15,
-  },
-  field: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  input: {
-    minHeight: 50,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#111827',
-    backgroundColor: '#f9fafb',
-  },
-  textArea: {
-    minHeight: 110,
-  },
-  checkboxContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 12,
-    padding: 14,
-    marginTop: 4,
-    marginBottom: 22,
-    backgroundColor: '#f9fafb',
-  },
-  checkboxContainerActive: {
-    borderColor: '#2563eb',
-    backgroundColor: '#eff6ff',
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderWidth: 2,
-    borderColor: '#9ca3af',
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ffffff',
-  },
-  checkboxActive: {
-    borderColor: '#2563eb',
-    backgroundColor: '#2563eb',
-  },
-  checkboxMark: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  checkboxLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  buttonGroup: {
-    gap: 12,
-  },
-  primaryButton: {
-    height: 52,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#2563eb',
-  },
-  primaryButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  disabledButton: {
-    opacity: 0.6,
-  },
-  secondaryButton: {
-    height: 52,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#e5e7eb',
-  },
-  secondaryButtonText: {
-    color: '#111827',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-});
