@@ -1,8 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { Session } from "@supabase/supabase-js";
-import { Tabs } from "expo-router";
+import { Redirect, Tabs } from "expo-router";
 import { useEffect, useState } from "react";
-
 
 export default function TabLayout() {
   const [session, SetSession] = useState<Session | null>(null)
@@ -28,14 +27,29 @@ export default function TabLayout() {
     return null;
   }
 
- //   if (!session) {
- //     return <Redirect href="/createUser" />;
- //   }
+  if (!session) {
+    return <Redirect href="/createUser" />;
+  }
 
   return (
     <Tabs>
-      <Tabs.Screen name="index" options={{title: "Today"}} />
+      <Tabs.Screen name="index" options={{title: "Index"}} />
       <Tabs.Screen name="tasks" options={{title: "Tasks"}} />
+      <Tabs.Screen name="assignments" options={{title: "Assignments"}} />
+      <Tabs.Screen name="subjects" options={{title: "Subjects"}} />
+      <Tabs.Screen name="timer" options={{title: "Timer"}} />
+
+      <Tabs.Screen name="subject/createSubject" options={{ href: null }} />
+      <Tabs.Screen name="subject/editSubject" options={{ href: null }} />
+      <Tabs.Screen name="subject/viewDetailsSubject" options={{ href: null }} />
+
+      <Tabs.Screen name="assignment/createAssignment" options={{ href: null }} />
+      <Tabs.Screen name="assignment/editAssignment" options={{ href: null }} />
+      <Tabs.Screen name="assignment/viewDetailsAssignment" options={{ href: null }} />
+
+      <Tabs.Screen name="task/createTask" options={{ href: null }} />
+      <Tabs.Screen name="task/editTask" options={{ href: null }} />
+      <Tabs.Screen name="task/viewDetailsTask" options={{ href: null }} />
     </Tabs>
   );
 }

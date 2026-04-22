@@ -1,11 +1,11 @@
 import * as React from 'react';
 import {
-    Animated,
-    Dimensions,
-    StatusBar,
-    StyleSheet,
-    TouchableOpacity,
-    View
+  Animated,
+  Dimensions,
+  StatusBar,
+  StyleSheet,
+  TouchableOpacity,
+  View
 } from 'react-native';
 const { width, height } = Dimensions.get('window');
 

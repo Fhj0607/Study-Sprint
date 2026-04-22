@@ -12,30 +12,29 @@ import {
   View,
 } from 'react-native';
 
-type Task = {
-  tId: string;
+type Subject = {
+  sId: string;
   title: string;
   description: string;
-  isCompleted: boolean;
+  isActive: boolean;
   lastChanged: string;
   uId: string;
-  aId: string;
 };
 
-export default function Tasks() {
-  const [tasks, SetTasks] = useState<Task[]>([]);
+export default function Subjects() {
+  const [subjects, SetSubjects] = useState<Subject[]>([]);
   const [session, SetSession] = useState<Session | null>(null);
 
-  const taskSections = [
+  const subjectSections = [
     {
-      title: 'Upcoming Tasks',
-      data: tasks.filter((task) => !task.isCompleted),
-      emptyMessage: 'No upcoming tasks',
+      title: 'Active Subjects',
+      data: subjects.filter((subject) => subject.isActive),
+      emptyMessage: 'No active subjects',
     },
     {
-      title: 'Completed Tasks',
-      data: tasks.filter((task) => task.isCompleted),
-      emptyMessage: 'No completed tasks',
+      title: 'Inactive Subjects',
+      data: subjects.filter((subject) => !subject.isActive),
+      emptyMessage: 'No inactive subjects',
     },
   ];
 
@@ -53,29 +52,32 @@ export default function Tasks() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  const GetTasks = async () => {
-    const { data, error } = await supabase.from('tasks').select('*');
+  const GetSubjects = async () => {
+    const { data, error } = await supabase
+      .from('subjects')
+      .select('*')
+      .order('lastChanged', { ascending: false });
 
     if (error) {
-      Alert.alert('Tasks could not be fetched, please try again');
+      Alert.alert('Subjects could not be fetched, please try again');
       return;
     }
 
-    SetTasks(data ?? []);
+    SetSubjects(data ?? []);
   };
 
   useFocusEffect(
     useCallback(() => {
       if (session) {
-        GetTasks();
+        GetSubjects();
       }
     }, [session])
   );
 
-  const DeleteTask = async (tId: string) => {
+  const DeleteSubject = async (sId: string) => {
     Alert.alert(
-      'Delete Task',
-      'Are you sure you want to delete this task?',
+      'Delete Subject',
+      'Are you sure you want to delete this subject?',
       [
         {
           text: 'Cancel',
@@ -86,17 +88,17 @@ export default function Tasks() {
           style: 'destructive',
           onPress: async () => {
             const { error } = await supabase
-              .from('tasks')
+              .from('subjects')
               .delete()
-              .eq('tId', tId);
+              .eq('sId', sId);
 
             if (error) {
-              Alert.alert('Task could not be deleted, please try again');
+              Alert.alert('Subject could not be deleted, please try again');
               return;
             }
 
-            Alert.alert('Task deleted successfully!');
-            GetTasks();
+            Alert.alert('Subject deleted successfully!');
+            GetSubjects();
           },
         },
       ]
@@ -107,13 +109,13 @@ export default function Tasks() {
     <View className="flex-1 bg-app-bg">
       <Stack.Screen
         options={{
-          title: 'Tasks',
+          title: 'Subjects',
           headerTitleStyle: defaultStyles.title,
           headerRight: () => (
             <View className="flex-row items-center">
               <Pressable
                 className="mr-3 h-10 w-10 items-center justify-center rounded-full border border-app-border bg-app-surface"
-                onPress={GetTasks}
+                onPress={GetSubjects}
               >
                 <Ionicons name="refresh" size={20} color="#333" />
               </Pressable>
@@ -134,25 +136,26 @@ export default function Tasks() {
       <View className="flex-1 px-5 pt-5">
         <View className="mb-6">
           <Text className="text-3xl font-bold text-text-main">
-            Tasks
+            Subjects
           </Text>
           <Text className="mt-2 text-base leading-6 text-text-secondary">
-            Break assignments into small steps and keep your progress clear.
+            Organize your study work by subject, then break it into assignments
+            and tasks.
           </Text>
         </View>
 
         <Pressable
           className="mb-6 h-14 items-center justify-center rounded-2xl bg-accent"
-          onPress={() => router.push('/task/createTask')}
+          onPress={() => router.push('/subject/createSubject')}
         >
           <Text className="text-base font-bold text-text-inverse">
-            Create Task
+            Create Subject
           </Text>
         </Pressable>
 
         <SectionList
-          sections={taskSections}
-          keyExtractor={(item) => item.tId}
+          sections={subjectSections}
+          keyExtractor={(item) => item.sId}
           showsVerticalScrollIndicator={false}
           stickySectionHeadersEnabled={false}
           contentContainerStyle={{
@@ -179,20 +182,20 @@ export default function Tasks() {
                 <Pressable
                   onPress={() =>
                     router.push({
-                      pathname: '/task/viewDetailsTask',
-                      params: { tId: item.tId },
+                      pathname: '/subject/viewDetailsSubject',
+                      params: { sId: item.sId },
                     })
                   }
                 >
                   <View className="flex-row items-start">
                     <View
                       className={`mr-3 mt-1 h-6 w-6 items-center justify-center rounded-md border-2 ${
-                        item.isCompleted
+                        item.isActive
                           ? 'border-accent bg-accent'
                           : 'border-app-border bg-app-subtle'
                       }`}
                     >
-                      {item.isCompleted && (
+                      {item.isActive && (
                         <Text className="text-sm font-bold text-text-inverse">
                           ✓
                         </Text>
@@ -202,9 +205,9 @@ export default function Tasks() {
                     <View className="flex-1">
                       <Text
                         className={`text-base font-bold ${
-                          item.isCompleted
-                            ? 'text-text-secondary'
-                            : 'text-text-main'
+                          item.isActive
+                            ? 'text-text-main'
+                            : 'text-text-secondary'
                         }`}
                       >
                         {item.title}
@@ -221,7 +224,7 @@ export default function Tasks() {
 
                       <View className="mt-3 self-start rounded-full bg-app-subtle px-3 py-1">
                         <Text className="text-xs font-semibold text-text-secondary">
-                          {item.isCompleted ? 'Completed' : 'In progress'}
+                          {item.isActive ? 'Active' : 'Inactive'}
                         </Text>
                       </View>
                     </View>
@@ -234,8 +237,8 @@ export default function Tasks() {
                       className="mr-3 flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-subtle py-3"
                       onPress={() =>
                         router.push({
-                          pathname: '/task/editTask',
-                          params: { tId: item.tId },
+                          pathname: '/subject/editSubject',
+                          params: { sId: item.sId },
                         })
                       }
                     >
@@ -246,7 +249,7 @@ export default function Tasks() {
 
                     <Pressable
                       className="flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-surface py-3"
-                      onPress={() => DeleteTask(item.tId)}
+                      onPress={() => DeleteSubject(item.sId)}
                     >
                       <Text className="text-sm font-bold text-status-danger">
                         Delete
@@ -264,7 +267,7 @@ export default function Tasks() {
                   {section.emptyMessage}
                 </Text>
                 <Text className="mt-1 text-center text-sm text-text-muted">
-                  Tasks for this assignment will show up here.
+                  Subjects you create will show up here.
                 </Text>
               </View>
             ) : (

@@ -12,30 +12,31 @@ import {
   View,
 } from 'react-native';
 
-type Task = {
-  tId: string;
+type Assignment = {
+  aId: string;
   title: string;
   description: string;
+  deadline: string;
   isCompleted: boolean;
   lastChanged: string;
   uId: string;
-  aId: string;
+  sId: string;
 };
 
-export default function Tasks() {
-  const [tasks, SetTasks] = useState<Task[]>([]);
+export default function Assignments() {
+  const [assignments, SetAssignments] = useState<Assignment[]>([]);
   const [session, SetSession] = useState<Session | null>(null);
 
-  const taskSections = [
+  const assignmentSections = [
     {
-      title: 'Upcoming Tasks',
-      data: tasks.filter((task) => !task.isCompleted),
-      emptyMessage: 'No upcoming tasks',
+      title: 'Upcoming Assignments',
+      data: assignments.filter((assignment) => !assignment.isCompleted),
+      emptyMessage: 'No upcoming assignments',
     },
     {
-      title: 'Completed Tasks',
-      data: tasks.filter((task) => task.isCompleted),
-      emptyMessage: 'No completed tasks',
+      title: 'Completed Assignments',
+      data: assignments.filter((assignment) => assignment.isCompleted),
+      emptyMessage: 'No completed assignments',
     },
   ];
 
@@ -53,29 +54,32 @@ export default function Tasks() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  const GetTasks = async () => {
-    const { data, error } = await supabase.from('tasks').select('*');
+  const GetAssignments = async () => {
+    const { data, error } = await supabase
+      .from('assignments')
+      .select('*')
+      .order('deadline', { ascending: false });
 
     if (error) {
-      Alert.alert('Tasks could not be fetched, please try again');
+      Alert.alert('Assignments could not be fetched, please try again');
       return;
     }
 
-    SetTasks(data ?? []);
+    SetAssignments(data ?? []);
   };
 
   useFocusEffect(
     useCallback(() => {
       if (session) {
-        GetTasks();
+        GetAssignments();
       }
     }, [session])
   );
 
-  const DeleteTask = async (tId: string) => {
+  const DeleteAssignment = async (aId: string) => {
     Alert.alert(
-      'Delete Task',
-      'Are you sure you want to delete this task?',
+      'Delete Assignment',
+      'Are you sure you want to delete this assignment?',
       [
         {
           text: 'Cancel',
@@ -86,17 +90,17 @@ export default function Tasks() {
           style: 'destructive',
           onPress: async () => {
             const { error } = await supabase
-              .from('tasks')
+              .from('assignments')
               .delete()
-              .eq('tId', tId);
+              .eq('aId', aId);
 
             if (error) {
-              Alert.alert('Task could not be deleted, please try again');
+              Alert.alert('Assignment could not be deleted, please try again');
               return;
             }
 
-            Alert.alert('Task deleted successfully!');
-            GetTasks();
+            Alert.alert('Assignment deleted successfully!');
+            GetAssignments();
           },
         },
       ]
@@ -107,13 +111,13 @@ export default function Tasks() {
     <View className="flex-1 bg-app-bg">
       <Stack.Screen
         options={{
-          title: 'Tasks',
+          title: 'Assignments',
           headerTitleStyle: defaultStyles.title,
           headerRight: () => (
             <View className="flex-row items-center">
               <Pressable
                 className="mr-3 h-10 w-10 items-center justify-center rounded-full border border-app-border bg-app-surface"
-                onPress={GetTasks}
+                onPress={GetAssignments}
               >
                 <Ionicons name="refresh" size={20} color="#333" />
               </Pressable>
@@ -134,25 +138,25 @@ export default function Tasks() {
       <View className="flex-1 px-5 pt-5">
         <View className="mb-6">
           <Text className="text-3xl font-bold text-text-main">
-            Tasks
+            Assignments
           </Text>
           <Text className="mt-2 text-base leading-6 text-text-secondary">
-            Break assignments into small steps and keep your progress clear.
+            Track what is coming up and what you have already finished.
           </Text>
         </View>
 
         <Pressable
           className="mb-6 h-14 items-center justify-center rounded-2xl bg-accent"
-          onPress={() => router.push('/task/createTask')}
+          onPress={() => router.push('/assignment/createAssignment')}
         >
           <Text className="text-base font-bold text-text-inverse">
-            Create Task
+            Create Assignment
           </Text>
         </Pressable>
 
         <SectionList
-          sections={taskSections}
-          keyExtractor={(item) => item.tId}
+          sections={assignmentSections}
+          keyExtractor={(item) => item.aId}
           showsVerticalScrollIndicator={false}
           stickySectionHeadersEnabled={false}
           contentContainerStyle={{
@@ -179,8 +183,8 @@ export default function Tasks() {
                 <Pressable
                   onPress={() =>
                     router.push({
-                      pathname: '/task/viewDetailsTask',
-                      params: { tId: item.tId },
+                      pathname: '/assignment/viewDetailsAssignment',
+                      params: { aId: item.aId },
                     })
                   }
                 >
@@ -221,7 +225,7 @@ export default function Tasks() {
 
                       <View className="mt-3 self-start rounded-full bg-app-subtle px-3 py-1">
                         <Text className="text-xs font-semibold text-text-secondary">
-                          {item.isCompleted ? 'Completed' : 'In progress'}
+                          Deadline: {item.deadline || 'No deadline'}
                         </Text>
                       </View>
                     </View>
@@ -234,8 +238,8 @@ export default function Tasks() {
                       className="mr-3 flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-subtle py-3"
                       onPress={() =>
                         router.push({
-                          pathname: '/task/editTask',
-                          params: { tId: item.tId },
+                          pathname: '/assignment/editAssignment',
+                          params: { aId: item.aId },
                         })
                       }
                     >
@@ -246,7 +250,7 @@ export default function Tasks() {
 
                     <Pressable
                       className="flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-surface py-3"
-                      onPress={() => DeleteTask(item.tId)}
+                      onPress={() => DeleteAssignment(item.aId)}
                     >
                       <Text className="text-sm font-bold text-status-danger">
                         Delete
@@ -264,7 +268,7 @@ export default function Tasks() {
                   {section.emptyMessage}
                 </Text>
                 <Text className="mt-1 text-center text-sm text-text-muted">
-                  Tasks for this assignment will show up here.
+                  New assignments will show up here.
                 </Text>
               </View>
             ) : (
