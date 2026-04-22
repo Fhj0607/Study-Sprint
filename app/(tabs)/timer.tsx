@@ -19,32 +19,55 @@ const colors = {
 const timers = [...Array(13).keys()].map((i) => (i === 0 ? 1 : i * 5));
 const ITEM_SIZE = width * 0.38;
 const ITEM_SPACING = (width - ITEM_SIZE) / 2;
+const TIMER_UNIT_IN_SECONDS = 1; // Set to 60 for timer value to represent minutes
 const placeholderTask = {
   name: 'Read chapter 4',
   description: 'Focus on the summary questions and write down anything unclear.',
 };
 
-/*
-Har bare skrevet timeren som en egen tab til å begynne med.
-Planen er at når bruker starter en task så vil de få opp denne timeren
-som viser TaskName og Description der tallene står nå
-Kanskje en animert figur hvis vi får tid
-*/ 
+function formatTime(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${minutes.toString().padStart(2, '0')}:${
+    seconds.toString().padStart(2, '0')}`;
+}
+
 export default function App() {
   const [containerHeight, setContainerHeight] = React.useState(0)
-  const scrollX = React.useRef(new Animated.Value(0)).current;
   const [duration, setDuration] = React.useState(timers[0])
   const [isRunning, setIsRunning] = React.useState(false)
+  const [timeRemaining, setTimeRemaining] = React.useState(0)
+  const [selectedIndex, setSelectedIndex] = React.useState(0)
+  const [showCountdownText, setShowCountdownText] = React.useState(false)
+  const scrollX = React.useRef(new Animated.Value(0)).current;
   const timerAnimation = React.useRef(new Animated.Value(0)).current
   const buttonAnimation = React.useRef(new Animated.Value(0)).current
   const taskDetailsAnimation = React.useRef(new Animated.Value(0)).current
+  const countdownAnimation = React.useRef(new Animated.Value(0)).current
+ 
   const animation = React.useCallback(() => {
-    if (isRunning) {
+    if (isRunning || containerHeight === 0) {
         return;
     }
 
     setIsRunning(true);
+    setShowCountdownText(true);
     taskDetailsAnimation.setValue(0);
+    countdownAnimation.setValue(0);
+
+    const totalSeconds = duration * TIMER_UNIT_IN_SECONDS;
+    setTimeRemaining(totalSeconds);
+
+    const countdown = setInterval(() => {
+      setTimeRemaining((currentTime) => {
+        if (currentTime <= 1) {
+          clearInterval(countdown)
+          return 0;
+        }
+        return currentTime -1;
+      });
+    }, 1000);
 
     Animated.sequence([
         Animated.parallel([
@@ -58,6 +81,11 @@ export default function App() {
                 duration: 500,
                 useNativeDriver: true
             }),
+            Animated.timing(countdownAnimation, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true
+        }),
         ]),
         Animated.timing(timerAnimation, {
             toValue: 0,
@@ -66,37 +94,45 @@ export default function App() {
         }),
         Animated.timing(timerAnimation, {
             toValue: containerHeight,
-            duration: duration * 1000,
+            duration: totalSeconds * 1000,
             useNativeDriver: true
-        }),
-    ]) .start(({ finished }) => {
+        })
+    ]).start(({ finished }) => {
         if (!finished) {
             setIsRunning(false);
             return;
         }
 
+        Animated.timing(countdownAnimation, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true
+        }).start(() => {
+          setShowCountdownText(false);
+        
         Animated.parallel([
-            Animated.timing(buttonAnimation, {
-                toValue: 0,
-                duration: 300,
-                useNativeDriver: true
-            }),
-            Animated.timing(taskDetailsAnimation, {
-                toValue: 0,
-                duration: 300,
-                useNativeDriver: true
-            }),
-        ]).start(() => {
-            setIsRunning(false);
-        })
+          Animated.timing(buttonAnimation, {
+              toValue: 0,
+              duration: 300,
+              useNativeDriver: true
+          }),
+          Animated.timing(taskDetailsAnimation, {
+              toValue: 0,
+              duration: 300,
+              useNativeDriver: true
+          }),
+      ]).start(() => {
+          setIsRunning(false);
+      })
     })
-  }, [buttonAnimation, duration, isRunning, taskDetailsAnimation, timerAnimation])
+  })
+}, [countdownAnimation, buttonAnimation, containerHeight, duration, isRunning, taskDetailsAnimation, timerAnimation])
 
   React.useEffect(() => {
-      if (containerHeight > 0) {
+      if (containerHeight > 0 && !isRunning) {
         timerAnimation.setValue(containerHeight);
       }
-    })
+    }, [containerHeight, isRunning, timerAnimation])
 
   const opacity = buttonAnimation.interpolate({
       inputRange: [0, 1],
@@ -127,7 +163,7 @@ return (
     <StatusBar hidden />
     <Animated.View 
     style={[StyleSheet.absoluteFillObject, {
-      height,
+      height: containerHeight,
       width,
       backgroundColor: colors.red,
       transform: [{
@@ -176,8 +212,10 @@ return (
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={ev => {
           const index = Math.round(ev.nativeEvent.contentOffset.x / ITEM_SIZE)
+          setSelectedIndex(index);
           setDuration(timers[index]);
         }}
+        
         snapToInterval={ITEM_SIZE}
         decelerationRate={"fast"}
         style={{flexGrow: 0}}
@@ -185,11 +223,14 @@ return (
           paddingHorizontal: ITEM_SPACING
         }}
         renderItem={({item, index}) => {
+          const isSelected = index === selectedIndex;
+          const timerText = showCountdownText && isSelected ? formatTime(timeRemaining) : item;
           const inputRange = [
               (index - 1) * ITEM_SIZE,
               index * ITEM_SIZE,
               (index + 1) * ITEM_SIZE,
           ]
+          
 
           const normalOpacity = scrollX.interpolate({
               inputRange,
@@ -202,21 +243,21 @@ return (
           })
           const opacity = Animated.add(
               Animated.multiply(normalOpacity, inactiveTimerNumberOpacity),
-              Animated.multiply(selectedOpacity, buttonAnimation)
+              Animated.multiply(selectedOpacity, countdownAnimation)
           )
           const scale = scrollX.interpolate({
               inputRange,
               outputRange: [.7, 1, .7]
           })
           return <View style={{width: ITEM_SIZE, justifyContent: 'center', alignItems: 'center'}}>
-              <Animated.Text style={[styles.text, {
+              <Animated.Text style={[showCountdownText && isSelected ? styles.countdownText : styles.text, {
                   opacity,
                   transform: [{
                       scale
                   }]
 
               }]}>
-                  {item}
+                  {timerText}
               </Animated.Text>
             </View>
           }
@@ -251,6 +292,7 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 80,
     backgroundColor: colors.red,
+    textAlign: 'center',
   },
   text: {
     fontSize: ITEM_SIZE * 0.8,
@@ -277,5 +319,11 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginTop: 10,
     textAlign: 'center',
+  },
+  countdownText: {
+    fontSize: ITEM_SIZE * 0.32,
+    fontFamily: 'Menlo',
+    color: colors.text,
+    fontWeight: '900',
   }
 });
