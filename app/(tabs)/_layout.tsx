@@ -28,9 +28,9 @@ export default function TabLayout() {
     return null;
   }
 
- //   if (!session) {
- //     return <Redirect href="/createUser" />;
- //   }
+//    if (!session) {
+//      return <Redirect href="/createUser" />;
+//    }
 
   return (
     <Tabs>

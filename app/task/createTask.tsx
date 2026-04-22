@@ -2,102 +2,197 @@ import { defaultStyles } from '@/constants/defaultStyles';
 import { supabase } from '@/lib/supabase';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Button, Keyboard, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, TouchableWithoutFeedback, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableWithoutFeedback,
+  View,
+} from 'react-native';
 
 export default function CreateTask() {
   const aId = (useLocalSearchParams().aId as string) ?? null;
+
   const [title, SetTitle] = useState('');
   const [description, SetDescription] = useState('');
   const [isCompleted, SetIsCompleted] = useState(false);
   const [isSaving, SetIsSaving] = useState(false);
 
   const CreateTask = async () => {
-    if(title.trim() === '') {
-      Alert.alert("Title is required!");
+    if (title.trim() === '') {
+      Alert.alert('Title is required!');
       return;
     }
-        
+
     const { data, error: userError } = await supabase.auth.getUser();
 
-    if(userError || !data.user) {
-      router.replace("../createUser");
+    if (userError || !data.user) {
+      router.replace('../createUser');
       return;
-    } 
+    }
 
     SetIsSaving(true);
 
-    const { error: dbError } = await supabase.from("tasks").insert({
-      title,
-      description,
+    const { error: dbError } = await supabase.from('tasks').insert({
+      title: title.trim(),
+      description: description.trim(),
       isCompleted,
       lastChanged: new Date().toISOString(),
       uId: data.user.id,
-      aId: aId,
+      aId,
     });
 
     if (dbError) {
-      Alert.alert("Task could not be created, please try again");
+      SetIsSaving(false);
+      Alert.alert('Task could not be created, please try again');
       return;
     }
 
-    Alert.alert("Task successfully created!");
+    Alert.alert('Task successfully created!');
 
     SetTitle('');
     SetDescription('');
     SetIsCompleted(false);
-
     SetIsSaving(false);
 
     router.back();
-  }
+  };
+
+  const inputClassName =
+    'rounded-2xl border border-app-border bg-app-subtle px-4 py-3 text-base text-text-main';
+
+  const labelClassName = 'mb-2 text-sm font-semibold text-text-secondary';
 
   return (
     <>
       <Stack.Screen
         options={{
-          title: "Create Task",
-          headerTitleStyle: defaultStyles.title
+          title: 'Create Task',
+          headerTitleStyle: defaultStyles.title,
         }}
       />
 
-      <View style={defaultStyles.container}>
-        <Text style={defaultStyles.title}>Create New Task</Text>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <View style={defaultStyles.container}>
-              <TextInput
-                style={defaultStyles.inputText}
-                placeholder="Enter title"
-                value={title}
-                onChangeText={SetTitle}
-              />
-              <TextInput
-                style={defaultStyles.inputText}
-                placeholder="Enter description"
-                value={description}
-                onChangeText={SetDescription}
-              />
+      <KeyboardAvoidingView
+        className="flex-1 bg-app-bg"
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <ScrollView
+            className="flex-1"
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{
+              flexGrow: 1,
+              justifyContent: 'center',
+              paddingHorizontal: 20,
+              paddingVertical: 32,
+            }}
+          >
+            <View className="mb-6">
+              <Text className="text-3xl font-bold text-text-main">
+                Create Task
+              </Text>
+              <Text className="mt-2 text-base leading-6 text-text-secondary">
+                Add a small step to move this assignment forward.
+              </Text>
+            </View>
+
+            <View className="rounded-3xl border border-app-border bg-app-surface p-5 shadow-sm">
+              <View className="mb-5">
+                <Text className={labelClassName}>Title</Text>
+                <TextInput
+                  className={inputClassName}
+                  placeholder="Enter task title"
+                  value={title}
+                  onChangeText={SetTitle}
+                  returnKeyType="next"
+                />
+              </View>
+
+              <View className="mb-5">
+                <Text className={labelClassName}>Description</Text>
+                <TextInput
+                  className={`${inputClassName} min-h-28`}
+                  placeholder="Add a short description"
+                  value={description}
+                  onChangeText={SetDescription}
+                  multiline
+                  textAlignVertical="top"
+                />
+              </View>
 
               <Pressable
-                onPress={() => SetIsCompleted(state => !state)}
-                style={defaultStyles.checkboxContainer}
+                onPress={() => SetIsCompleted((state) => !state)}
+                disabled={isSaving}
+                className={`mb-6 flex-row items-center rounded-2xl border p-4 ${
+                  isCompleted
+                    ? 'border-accent bg-accent-soft'
+                    : 'border-app-border bg-app-subtle'
+                }`}
               >
-                <View style={defaultStyles.checkbox}>
-                  {isCompleted && <Text style={defaultStyles.checkboxMark}>✓</Text>}
+                <View
+                  className={`mr-3 h-6 w-6 items-center justify-center rounded-md border-2 ${
+                    isCompleted
+                      ? 'border-accent bg-accent'
+                      : 'border-app-border bg-app-surface'
+                  }`}
+                >
+                  {isCompleted && (
+                    <Text className="text-sm font-bold text-text-inverse">
+                      ✓
+                    </Text>
+                  )}
                 </View>
-                <Text style={defaultStyles.checkboxLabel}>{isCompleted ? 'Completed' : 'Not completed'}</Text>
+
+                <View className="flex-1">
+                  <Text className="text-base font-semibold text-text-main">
+                    Mark as completed
+                  </Text>
+                  <Text className="mt-1 text-sm text-text-muted">
+                    You can change this later.
+                  </Text>
+                </View>
               </Pressable>
 
-              <Button title={isSaving ? "Saving..." : "Save"} onPress={CreateTask} disabled={isSaving} />
-              {isSaving && (
-                <ActivityIndicator size="large" />
-              )}
-              <Button title="Cancel" onPress={() => router.back()} />
-            </View>
-          </TouchableWithoutFeedback>
-        </KeyboardAvoidingView>
-      </View>
-    </>
-  )
-}
+              <Pressable
+                className={`h-14 items-center justify-center rounded-2xl ${
+                  isSaving ? 'bg-accent-disabled' : 'bg-accent'
+                }`}
+                onPress={CreateTask}
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <View className="flex-row items-center">
+                    <ActivityIndicator size="small" />
+                    <Text className="ml-3 text-base font-bold text-text-inverse">
+                      Creating...
+                    </Text>
+                  </View>
+                ) : (
+                  <Text className="text-base font-bold text-text-inverse">
+                    Create Task
+                  </Text>
+                )}
+              </Pressable>
 
+              <Pressable
+                className="mt-3 h-14 items-center justify-center rounded-2xl border border-app-border bg-app-subtle"
+                onPress={() => router.back()}
+                disabled={isSaving}
+              >
+                <Text className="text-base font-semibold text-text-secondary">
+                  Cancel
+                </Text>
+              </Pressable>
+            </View>
+          </ScrollView>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
+    </>
+  );
+}

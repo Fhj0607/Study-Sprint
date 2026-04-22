@@ -10,59 +10,60 @@ module.exports = {
     extend: {
       colors: {
         app: {
-          bg: "var(--color-bg)",
-          surface: "var(--color-surface)",
-          subtle: "var(--color-subtle)",
-          border: "var(--color-border)",
+          bg: '#F7F5EF',
+          surface: '#FFFFFF',
+          subtle: '#EFEBE3',
+          border: '#DDD6C8',
         },
 
         text: {
-          main: "var(--color-text-main)",
-          secondary: "var(--color-text-secondary)",
-          muted: "var(--color-text-muted)",
-          inverse: "var(--color-text-inverse)",
+          main: '#1F2933',
+          secondary: '#52616B',
+          muted: '#9AA6B2',
+          inverse: '#FFFFFF',
         },
 
         accent: {
-          DEFAULT: "var(--color-accent)",
-          soft: "var(--color-accent-soft)",
-          hover: "var(--color-accent-hover)",
+          DEFAULT: '#3B82A0',
+          soft: '#DCEFF5',
+          hover: '#2F6F88',
+          disabled: '#9CC7D6',
         },
 
         status: {
-          success: "var(--color-success)",
-          warning: "var(--color-warning)",
-          danger: "var(--color-danger)",
+          success: '#15803D',
+          warning: '#B7791F',
+          danger: '#B91C1C',
         },
 
         subject: {
           blue: {
-            bg: "var(--subject-blue-bg)",
-            text: "var(--subject-blue-text)",
+            bg: '#DCEFF5',
+            text: '#2F6F88',
           },
           emerald: {
-            bg: "var(--subject-emerald-bg)",
-            text: "var(--subject-emerald-text)",
+            bg: '#DDEFE5',
+            text: '#2F7D55',
           },
           amber: {
-            bg: "var(--subject-amber-bg)",
-            text: "var(--subject-amber-text)",
+            bg: '#F6E8C6',
+            text: '#9A6A16',
           },
           violet: {
-            bg: "var(--subject-violet-bg)",
-            text: "var(--subject-violet-text)",
+            bg: '#E9E2F5',
+            text: '#6D4BA3',
           },
           cyan: {
-            bg: "var(--subject-cyan-bg)",
-            text: "var(--subject-cyan-text)",
+            bg: '#DDF0EF',
+            text: '#287C7A',
           },
           rose: {
-            bg: "var(--subject-rose-bg)",
-            text: "var(--subject-rose-text)",
+            bg: '#F4E1DF',
+            text: '#9B4A43',
           },
           slate: {
-            bg: "var(--subject-slate-bg)",
-            text: "var(--subject-slate-text)",
+            bg: '#E8E4DA',
+            text: '#52616B',
           },
         },
       },
