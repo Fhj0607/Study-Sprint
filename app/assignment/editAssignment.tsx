@@ -1,5 +1,7 @@
 import { defaultStyles } from '@/constants/defaultStyles';
+import { GetAssignmentNotificationId, RemoveAssignmentNotificationId, SaveAssignmentNotificationId } from '@/lib/asyncStorage';
 import { supabase } from '@/lib/supabase';
+import * as Notifications from 'expo-notifications';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Button, Keyboard, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, TouchableWithoutFeedback, View } from 'react-native';
@@ -19,6 +21,39 @@ export default function EditAssignment() {
   const { aId } = useLocalSearchParams<{ aId: string }>();
   const [assignment, SetAssignment] = useState<Assignment | null>(null)
   const [isSaving, SetIsSaving] = useState(false);
+
+  const ScheduleDeadlineReminder = async (aId: string, title: string, deadline: string) => {
+    const dl = new Date(deadline);
+
+    if (isNaN(dl.getTime())) return null;
+
+    const deadlineReminder = new Date(dl.getTime() - 24 * 60 * 60 * 1000);
+
+      if (deadlineReminder <= new Date()) return null;
+
+    const nId = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Assignment deadline coming up',
+        body: `${title} is due in 24 hours.`,
+        data: { aId },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: deadlineReminder,
+      },
+    });
+
+    return nId;
+  }  
+
+  const CancelDeadlineReminder = async (aId: string) => {
+    const nId = await GetAssignmentNotificationId(aId);
+
+    if (!nId) return;
+
+    await Notifications.cancelScheduledNotificationAsync(nId);
+    await RemoveAssignmentNotificationId(aId);
+  }
 
   const GetAssignment = async (aId: string) => { 
     const { data, error } = await supabase.from("assignments").select("*").eq("aId", aId).single();
@@ -47,24 +82,27 @@ export default function EditAssignment() {
       return;
     }
         
-    const { data, error: userError } = await supabase.auth.getUser();
+    const { data: userData, error: userError } = await supabase.auth.getUser();
 
-    if(userError || !data.user) {
+    if(userError || !userData.user) {
       router.replace("../createUser");
       return;
     } 
 
     SetIsSaving(true);
 
-    const { error: dbError } = await supabase.from("assignments").update({
+    const { data: assignmentData, error: dbError } = await supabase.from("assignments").update({
       title: assignment.title,
       description: assignment.description,
       deadline: assignment.deadline,
       isCompleted: assignment.isCompleted,
       lastChanged: new Date().toISOString(),
-      uId: data.user.id,
+      uId: userData.user.id,
       sId: assignment.sId,
-    }).eq("aId", aId);
+    })
+    .eq("aId", aId)
+    .select()
+    .single();
 
     SetIsSaving(false);
 
@@ -74,6 +112,18 @@ export default function EditAssignment() {
     }
 
     Alert.alert("Assignment successfully edited!");
+
+    if (assignmentData) {
+      await CancelDeadlineReminder(assignmentData.aId);
+
+      if (!assignmentData.isCompleted) {
+        const nId = await ScheduleDeadlineReminder(assignmentData.aId, assignmentData.title, assignmentData.deadline);
+
+        if (nId) {
+          await SaveAssignmentNotificationId(assignmentData.aId, nId);
+        }
+      }
+    }
 
     router.back();
   }

@@ -1,5 +1,7 @@
 import { defaultStyles } from '@/constants/defaultStyles';
+import * as AsyncStorage from '@/lib/asyncStorage';
 import { supabase } from '@/lib/supabase';
+import * as Notifications from 'expo-notifications';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -18,12 +20,35 @@ import {
 
 export default function CreateAssignment() {
   const sId = (useLocalSearchParams().sId as string) ?? null;
-
   const [title, SetTitle] = useState('');
   const [description, SetDescription] = useState('');
   const [deadline, SetDeadline] = useState('');
   const [isCompleted, SetIsCompleted] = useState(false);
   const [isSaving, SetIsSaving] = useState(false);
+
+  const ScheduleDeadlineReminder = async (aId: string, title: string, deadline: string) => {
+    const dl = new Date(deadline);
+
+    if (isNaN(dl.getTime())) return null;
+
+    const deadlineReminder = new Date(dl.getTime() - 24 * 60 * 60 * 1000);
+
+      if (deadlineReminder <= new Date()) return null;
+
+    const nId = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Assignment deadline coming up',
+        body: `${title} is due in 24 hours.`,
+        data: { aId },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: deadlineReminder,
+      },
+    });
+
+    return nId;
+  }
 
   const CreateAssignment = async () => {
     if (title.trim() === '') {
@@ -31,24 +56,26 @@ export default function CreateAssignment() {
       return;
     }
 
-    const { data, error: userError } = await supabase.auth.getUser();
+    const { data: userData, error: userError } = await supabase.auth.getUser();
 
-    if (userError || !data.user) {
+    if (userError || !userData.user) {
       router.replace('../createUser');
       return;
     }
 
     SetIsSaving(true);
 
-    const { error: dbError } = await supabase.from('assignments').insert({
+    const { data: assignmentData, error: dbError } = await supabase.from('assignments').insert({
       title: title.trim(),
       description: description.trim(),
       deadline: deadline.trim(),
       isCompleted,
       lastChanged: new Date().toISOString(),
-      uId: data.user.id,
+      uId: userData.user.id,
       sId,
-    });
+    })
+    .select()
+    .single();
 
     if (dbError) {
       SetIsSaving(false);
@@ -57,6 +84,14 @@ export default function CreateAssignment() {
     }
 
     Alert.alert('Assignment successfully created!');
+
+    if (!isCompleted && assignmentData) {
+      const nId = await ScheduleDeadlineReminder(assignmentData.aId, assignmentData.title, assignmentData.deadline);
+
+      if (nId) {
+        await AsyncStorage.SaveAssignmentNotificationId(assignmentData.aId, nId);
+      }
+    }
 
     SetTitle('');
     SetDescription('');
