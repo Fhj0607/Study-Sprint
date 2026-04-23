@@ -41,10 +41,13 @@ export default function App() {
   const [selectedIndex, setSelectedIndex] = React.useState(0)
   const [showCountdownText, setShowCountdownText] = React.useState(false)
   const scrollX = React.useRef(new Animated.Value(0)).current;
-  const timerAnimation = React.useRef(new Animated.Value(0)).current
-  const buttonAnimation = React.useRef(new Animated.Value(0)).current
-  const taskDetailsAnimation = React.useRef(new Animated.Value(0)).current
-  const countdownAnimation = React.useRef(new Animated.Value(0)).current
+  const timerAnimation = React.useRef(new Animated.Value(0)).current;
+  const buttonAnimation = React.useRef(new Animated.Value(0)).current;
+  const taskDetailsAnimation = React.useRef(new Animated.Value(0)).current;
+  const countdownAnimation = React.useRef(new Animated.Value(0)).current;
+  const countdownRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+  const runningAnimationRef = React.useRef<Animated.CompositeAnimation | null>(null);
+  const cancelButtonAnimation = React.useRef(new Animated.Value(0)).current;
  
   const animation = React.useCallback(() => {
     if (isRunning || containerHeight === 0) {
@@ -59,74 +62,99 @@ export default function App() {
     const totalSeconds = duration * TIMER_UNIT_IN_SECONDS;
     setTimeRemaining(totalSeconds);
 
-    const countdown = setInterval(() => {
+    if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+        countdownRef.current = null;
+      }
+    countdownRef.current = setInterval(() => {
       setTimeRemaining((currentTime) => {
         if (currentTime <= 1) {
-          clearInterval(countdown)
+          if (countdownRef.current) {
+            clearInterval(countdownRef.current);
+            countdownRef.current = null;
+          }
           return 0;
-        }
-        return currentTime -1;
-      });
+          }
+         return currentTime -1;
+        });
     }, 1000);
 
-    Animated.sequence([
-        Animated.parallel([
-            Animated.timing(buttonAnimation, {
-                toValue: 1,
-                duration: 300,
-                useNativeDriver: true
-            }),
-            Animated.timing(taskDetailsAnimation, {
-                toValue: 1,
-                duration: 500,
-                useNativeDriver: true
-            }),
-            Animated.timing(countdownAnimation, {
-            toValue: 1,
-            duration: 300,
-            useNativeDriver: true
+    const runningAnimation = Animated.sequence([
+      Animated.parallel([
+        Animated.timing(buttonAnimation, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true
         }),
-        ]),
-        Animated.timing(timerAnimation, {
+        Animated.timing(cancelButtonAnimation, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true
+        }),
+        Animated.timing(taskDetailsAnimation, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true
+        }),
+        Animated.timing(countdownAnimation, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true
+        }),
+      ]),
+      Animated.timing(timerAnimation, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true
+      }),
+      Animated.timing(timerAnimation, {
+        toValue: containerHeight,
+        duration: totalSeconds * 1000,
+        useNativeDriver: true
+      })
+    ]);
+    runningAnimationRef.current = runningAnimation;
+
+    runningAnimation.start(({ finished }) => {
+      runningAnimationRef.current = null;
+      
+      if (!finished) {
+        return;
+      }
+
+      Animated.timing(countdownAnimation, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true
+      }).start(() => {
+        setShowCountdownText(false);
+    
+        Animated.parallel([
+          Animated.timing(buttonAnimation, {
             toValue: 0,
             duration: 300,
             useNativeDriver: true
-        }),
-        Animated.timing(timerAnimation, {
-            toValue: containerHeight,
-            duration: totalSeconds * 1000,
-            useNativeDriver: true
-        })
-    ]).start(({ finished }) => {
-        if (!finished) {
-            setIsRunning(false);
-            return;
-        }
-
-        Animated.timing(countdownAnimation, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true
-        }).start(() => {
-          setShowCountdownText(false);
-        
-        Animated.parallel([
-          Animated.timing(buttonAnimation, {
-              toValue: 0,
-              duration: 300,
-              useNativeDriver: true
           }),
           Animated.timing(taskDetailsAnimation, {
-              toValue: 0,
-              duration: 300,
-              useNativeDriver: true
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true
+          }),
+          Animated.timing(cancelButtonAnimation, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true
           }),
       ]).start(() => {
-          setIsRunning(false);
+        setIsRunning(false);
+        /* TODO
+          Implement store and send of ellapsed time value in seconds to DB
+          for total time spent statistic
+        */
       })
     })
-  })
-}, [countdownAnimation, buttonAnimation, containerHeight, duration, isRunning, taskDetailsAnimation, timerAnimation])
+  });
+}, [cancelButtonAnimation, countdownAnimation, buttonAnimation, containerHeight, duration, isRunning, taskDetailsAnimation, timerAnimation]);
 
   React.useEffect(() => {
       if (containerHeight > 0 && !isRunning) {
@@ -134,27 +162,77 @@ export default function App() {
       }
     }, [containerHeight, isRunning, timerAnimation])
 
-  const opacity = buttonAnimation.interpolate({
+    const cancelButtonOpacity = cancelButtonAnimation;
+
+    const cancelButtonTranslateY = cancelButtonAnimation.interpolate({
       inputRange: [0, 1],
-      outputRange: [1, 0]
-  })
-  const translateY = buttonAnimation.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0, 200]
-  })
-  const inactiveTimerNumberOpacity = buttonAnimation.interpolate({
-      inputRange: [0, 1],
-      outputRange: [1, 0]
-  })
-  const taskDetailsOpacity = taskDetailsAnimation.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0, 1]
-  })
-  const taskDetailsTranslateY = taskDetailsAnimation.interpolate({
-      inputRange: [0, 1],
-      outputRange: [20, 0]
-  })
-      
+      outputRange: [16, 0],
+    })
+
+    const opacity = buttonAnimation.interpolate({
+        inputRange: [0, 1],
+        outputRange: [1, 0]
+    })
+    const translateY = buttonAnimation.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, 200]
+    })
+    const inactiveTimerNumberOpacity = buttonAnimation.interpolate({
+        inputRange: [0, 1],
+        outputRange: [1, 0]
+    })
+    const taskDetailsOpacity = taskDetailsAnimation.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, 1]
+    })
+    const taskDetailsTranslateY = taskDetailsAnimation.interpolate({
+        inputRange: [0, 1],
+        outputRange: [20, 0]
+    })
+    const cancelTimer = React.useCallback(() => {
+      if (!isRunning){
+        return;
+      }
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+        countdownRef.current = null;
+      }
+      runningAnimationRef.current?.stop();
+      runningAnimationRef.current = null;
+
+      Animated.parallel([
+        Animated.timing(cancelButtonAnimation, {
+          toValue: 0,
+          duration: 180,
+          useNativeDriver: true
+        }),
+        Animated.timing(buttonAnimation, {
+          toValue: 0,
+          duration: 220,
+          useNativeDriver: true
+        }),
+        Animated.timing(taskDetailsAnimation, {
+          toValue: 0,
+          duration: 220,
+          useNativeDriver: true
+        }),
+        Animated.timing(countdownAnimation, {
+          toValue: 0,
+          duration: 180,
+          useNativeDriver: true
+        }),
+        Animated.timing(timerAnimation, {
+          toValue: containerHeight,
+          duration: 220, 
+          useNativeDriver: true
+        }),
+      ]).start(() => {
+        setShowCountdownText(false);
+        setTimeRemaining(0);
+        setIsRunning(false);
+      });
+    }, [buttonAnimation, cancelButtonAnimation, containerHeight, countdownAnimation, timerAnimation, isRunning, taskDetailsAnimation,]);
+        
 return (
   <View style={styles.container}
   onLayout={(event) => {
@@ -184,12 +262,28 @@ return (
           }]
         },
       ]}>
+        
       <TouchableOpacity
         disabled={isRunning}
         onPress={animation}>
-        <View
-          style={styles.roundButton}
-        />
+        <View style={styles.roundButton}>
+          <Text className='text-text-main'>Start</Text>
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+    <Animated.View
+    pointerEvents={isRunning? 'auto' : 'none'}
+    style={[
+      styles.cancelButtonContainer,
+      {
+        opacity: cancelButtonOpacity,
+        transform: [{translateY: cancelButtonTranslateY}],
+      },
+    ]}>
+      <TouchableOpacity onPress={cancelTimer} activeOpacity={0.75}>
+        <View style={styles.cancelButton}>
+          <Text className='text-text-main'>Cancel</Text>
+        </View>
       </TouchableOpacity>
     </Animated.View>
     <View
@@ -292,8 +386,10 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 80,
     backgroundColor: colors.red,
-    textAlign: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  
   text: {
     fontSize: ITEM_SIZE * 0.8,
     fontFamily: 'Menlo',
@@ -325,5 +421,24 @@ const styles = StyleSheet.create({
     fontFamily: 'Menlo',
     color: colors.text,
     fontWeight: '900',
-  }
+  },
+  cancelButtonContainer:  {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 44,
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  cancelButton: {
+    minWidth: 112,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(155, 155, 155, 0.35',
+    backgroundColor: '#beb9a7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 22,
+  },
 });
