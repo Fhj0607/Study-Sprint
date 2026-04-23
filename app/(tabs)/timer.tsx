@@ -36,7 +36,7 @@ function formatTime(totalSeconds: number) {
 export default function App() {
   const [containerHeight, setContainerHeight] = React.useState(0)
   const [duration, setDuration] = React.useState(timers[0])
-  const [isRunning, setIsRunning] = React.useState(false)
+  const [timerIsRunning, setIsRunning] = React.useState(false)
   const [timeRemaining, setTimeRemaining] = React.useState(0)
   const [selectedIndex, setSelectedIndex] = React.useState(0)
   const [showCountdownText, setShowCountdownText] = React.useState(false)
@@ -48,16 +48,17 @@ export default function App() {
   const countdownRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
   const runningAnimationRef = React.useRef<Animated.CompositeAnimation | null>(null);
   const cancelButtonAnimation = React.useRef(new Animated.Value(0)).current;
+  const cancelProgressAnimation  = React.useRef(new Animated.Value(0)).current;
  
   const animation = React.useCallback(() => {
-    if (isRunning || containerHeight === 0) {
+    if (timerIsRunning || containerHeight === 0) {
         return;
     }
-
     setIsRunning(true);
     setShowCountdownText(true);
     taskDetailsAnimation.setValue(0);
     countdownAnimation.setValue(0);
+    cancelProgressAnimation.setValue(0);
 
     const totalSeconds = duration * TIMER_UNIT_IN_SECONDS;
     setTimeRemaining(totalSeconds);
@@ -107,11 +108,18 @@ export default function App() {
         duration: 300,
         useNativeDriver: true
       }),
-      Animated.timing(timerAnimation, {
+      Animated.parallel([
+        Animated.timing(timerAnimation, {
         toValue: containerHeight,
         duration: totalSeconds * 1000,
         useNativeDriver: true
-      })
+      }),
+      Animated.timing(cancelProgressAnimation, {
+        toValue: 1,
+        duration: totalSeconds *  1000,
+        useNativeDriver: false,
+      }),
+      ]),
     ]);
     runningAnimationRef.current = runningAnimation;
 
@@ -154,43 +162,44 @@ export default function App() {
       })
     })
   });
-}, [cancelButtonAnimation, countdownAnimation, buttonAnimation, containerHeight, duration, isRunning, taskDetailsAnimation, timerAnimation]);
+}, [cancelProgressAnimation, cancelButtonAnimation, countdownAnimation, 
+  buttonAnimation, containerHeight, duration, timerIsRunning, taskDetailsAnimation, 
+  timerAnimation, showCountdownText]);
 
   React.useEffect(() => {
-      if (containerHeight > 0 && !isRunning) {
+      if (containerHeight > 0 && !timerIsRunning) {
         timerAnimation.setValue(containerHeight);
       }
-    }, [containerHeight, isRunning, timerAnimation])
+    }, [containerHeight, timerIsRunning, timerAnimation])
 
+    const timerOverlayOpacity = React.useRef(new Animated.Value(1)).current;
     const cancelButtonOpacity = cancelButtonAnimation;
-
     const cancelButtonTranslateY = cancelButtonAnimation.interpolate({
       inputRange: [0, 1],
       outputRange: [16, 0],
-    })
-
+    });
     const opacity = buttonAnimation.interpolate({
         inputRange: [0, 1],
         outputRange: [1, 0]
-    })
+    });
     const translateY = buttonAnimation.interpolate({
         inputRange: [0, 1],
         outputRange: [0, 200]
-    })
+    });
     const inactiveTimerNumberOpacity = buttonAnimation.interpolate({
         inputRange: [0, 1],
         outputRange: [1, 0]
-    })
+    });
     const taskDetailsOpacity = taskDetailsAnimation.interpolate({
         inputRange: [0, 1],
         outputRange: [0, 1]
-    })
+    });
     const taskDetailsTranslateY = taskDetailsAnimation.interpolate({
         inputRange: [0, 1],
         outputRange: [20, 0]
-    })
+    });
     const cancelTimer = React.useCallback(() => {
-      if (!isRunning){
+      if (!timerIsRunning){
         return;
       }
       if (countdownRef.current) {
@@ -200,38 +209,52 @@ export default function App() {
       runningAnimationRef.current?.stop();
       runningAnimationRef.current = null;
 
+    
       Animated.parallel([
-        Animated.timing(cancelButtonAnimation, {
-          toValue: 0,
-          duration: 180,
-          useNativeDriver: true
-        }),
-        Animated.timing(buttonAnimation, {
-          toValue: 0,
-          duration: 220,
-          useNativeDriver: true
-        }),
-        Animated.timing(taskDetailsAnimation, {
-          toValue: 0,
-          duration: 220,
-          useNativeDriver: true
-        }),
-        Animated.timing(countdownAnimation, {
-          toValue: 0,
-          duration: 180,
-          useNativeDriver: true
-        }),
-        Animated.timing(timerAnimation, {
-          toValue: containerHeight,
-          duration: 220, 
-          useNativeDriver: true
-        }),
-      ]).start(() => {
-        setShowCountdownText(false);
+      Animated.timing(cancelButtonAnimation, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true
+      }),
+      Animated.timing(taskDetailsAnimation, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true
+      }),
+      Animated.timing(countdownAnimation, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true
+      }),
+      Animated.timing(timerAnimation, {
+        toValue: containerHeight,
+        duration: 300, 
+        useNativeDriver: true
+      }),
+      Animated.timing(timerOverlayOpacity, {
+        toValue: 0,
+        duration: 120,
+        useNativeDriver: true,
+      })
+    ]).start(() => {
+      setShowCountdownText(false);
+
+      Animated.timing(buttonAnimation, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true
+      })
+      .start(() => {
+        timerAnimation.setValue(containerHeight)
+        timerOverlayOpacity.setValue(1);
+        cancelProgressAnimation.stopAnimation();
+        cancelProgressAnimation.setValue(0);
         setTimeRemaining(0);
         setIsRunning(false);
       });
-    }, [buttonAnimation, cancelButtonAnimation, containerHeight, countdownAnimation, timerAnimation, isRunning, taskDetailsAnimation,]);
+    })
+  }, [timerOverlayOpacity, cancelProgressAnimation, buttonAnimation, cancelButtonAnimation,
+    containerHeight, countdownAnimation, timerAnimation, timerIsRunning, taskDetailsAnimation,]);
         
 return (
   <View style={styles.container}
@@ -264,15 +287,16 @@ return (
       ]}>
         
       <TouchableOpacity
-        disabled={isRunning}
+        disabled={timerIsRunning}
         onPress={animation}>
         <View style={styles.roundButton}>
-          <Text className='text-text-main'>Start</Text>
+          <Text className='text-text-main text-xl'>Start</Text>
+          <Text className='text-text-main text-xl'>Sprint</Text>
         </View>
       </TouchableOpacity>
     </Animated.View>
     <Animated.View
-    pointerEvents={isRunning? 'auto' : 'none'}
+    pointerEvents={timerIsRunning? 'auto' : 'none'}
     style={[
       styles.cancelButtonContainer,
       {
@@ -280,9 +304,18 @@ return (
         transform: [{translateY: cancelButtonTranslateY}],
       },
     ]}>
-      <TouchableOpacity onPress={cancelTimer} activeOpacity={0.75}>
+      <TouchableOpacity onPress={cancelTimer}>
         <View style={styles.cancelButton}>
-          <Text className='text-text-main'>Cancel</Text>
+          <Animated.View style={[
+            styles.cancelButtonFill, {
+              width: cancelProgressAnimation.interpolate({
+                inputRange: [0, 1],
+                outputRange: ['0%', '100%'],
+              }),
+            },
+          ]}
+          />
+          <Text className='text-text-main text-xl'>Cancel</Text>
         </View>
       </TouchableOpacity>
     </Animated.View>
@@ -296,6 +329,7 @@ return (
       }}>
         <Animated.FlatList
         data={timers}
+        scrollEnabled={!timerIsRunning}
         keyExtractor={item => item.toString()}
         horizontal
         bounces={false}
@@ -305,6 +339,10 @@ return (
         )}
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={ev => {
+          if (timerIsRunning) {
+            return;
+          }
+          
           const index = Math.round(ev.nativeEvent.contentOffset.x / ITEM_SIZE)
           setSelectedIndex(index);
           setDuration(timers[index]);
@@ -385,7 +423,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 80,
-    backgroundColor: colors.red,
+    backgroundColor: '#beb9a7',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -435,10 +473,19 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: 'rgba(155, 155, 155, 0.35',
+    borderColor: 'rgba(155, 155, 155, 0.35)',
     backgroundColor: '#beb9a7',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 22,
+    position: 'relative',
+    overflow: 'hidden',
   },
+  cancelButtonFill: {
+    position: 'absolute',
+    left: 0,
+    bottom: 0,
+    top: 0,
+    backgroundColor: 'rgb(184, 80, 80)',
+  }
 });
