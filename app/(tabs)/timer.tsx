@@ -164,7 +164,7 @@ export default function App() {
   });
 }, [cancelProgressAnimation, cancelButtonAnimation, countdownAnimation, 
   buttonAnimation, containerHeight, duration, timerIsRunning, taskDetailsAnimation, 
-  timerAnimation, showCountdownText]);
+  timerAnimation]);
 
   React.useEffect(() => {
       if (containerHeight > 0 && !timerIsRunning) {
