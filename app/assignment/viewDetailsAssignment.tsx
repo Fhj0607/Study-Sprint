@@ -1,30 +1,10 @@
 import { defaultStyles } from '@/constants/defaultStyles';
 import { supabase } from '@/lib/supabase';
+import type { Assignment, Task } from '@/lib/types';
 import { Session } from '@supabase/supabase-js';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Button, Pressable, SectionList, Text, View } from "react-native";
-
-type Assignment = {
-  aId: string;
-  title: string;
-  description: string;
-  deadline: string;
-  isCompleted: boolean;
-  lastChanged: string;
-  uId: string;
-  sId: string;
-}
-
-type Task = {
-  tId: string;
-  title: string;
-  description: string;
-  isCompleted: boolean;
-  lastChanged: string;
-  uId: string;
-  aId: string;
-}
 
 export default function ViewDetailsAssignment() {
   const { aId } = useLocalSearchParams<{ aId: string }>();
@@ -133,6 +113,8 @@ export default function ViewDetailsAssignment() {
     )
   }
 
+  const progress = tasks.length === 0 ? 0 : Math.round((tasks.filter(task => task.isCompleted).length / tasks.length) * 100);
+
   return (
     <View style={defaultStyles.container}>
       <Stack.Screen
@@ -170,6 +152,27 @@ export default function ViewDetailsAssignment() {
             <Text style={defaultStyles.body}>{assignment.deadline}</Text>
             <View style={defaultStyles.checkbox}>
                 {assignment.isCompleted && <Text style={defaultStyles.checkboxMark}>✓</Text>}
+            </View>
+            <View style={{ width: "100%", marginTop: 8 }}>
+              <Text style={{ marginBottom: 4 }}>{progress}%</Text>
+
+              <View
+                style={{
+                  width: "100%",
+                  height: 12,
+                  backgroundColor: "#D9D9D9",
+                  borderRadius: 999,
+                  overflow: "hidden",
+                }}
+              >
+                <View
+                  style={{
+                    width: `${progress}%`,
+                    height: "100%",
+                    backgroundColor: "#4CAF50",
+                  }}
+                />
+              </View>
             </View>
             <Text style={defaultStyles.body}>{assignment.lastChanged}</Text>
 

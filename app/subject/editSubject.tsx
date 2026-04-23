@@ -1,17 +1,9 @@
 import { defaultStyles } from '@/constants/defaultStyles';
 import { supabase } from '@/lib/supabase';
+import type { Subject } from '@/lib/types';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Button, Keyboard, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, TouchableWithoutFeedback, View } from 'react-native';
-
-type Subject = {
-  sId: string;
-  title: string;
-  description: string;
-  isActive: boolean;
-  lastChanged: string;
-  uId: string;
-}
 
 export default function EditSubject() {
   const { sId } = useLocalSearchParams<{ sId: string }>();

@@ -1,5 +1,6 @@
 import { defaultStyles } from '@/constants/defaultStyles';
 import { supabase } from '@/lib/supabase';
+import type { Assignment, Task } from '@/lib/types';
 import { Ionicons } from '@expo/vector-icons';
 import { Session } from '@supabase/supabase-js';
 import { router, Stack, useFocusEffect } from 'expo-router';
@@ -12,19 +13,9 @@ import {
   View,
 } from 'react-native';
 
-type Assignment = {
-  aId: string;
-  title: string;
-  description: string;
-  deadline: string;
-  isCompleted: boolean;
-  lastChanged: string;
-  uId: string;
-  sId: string;
-};
-
 export default function Assignments() {
   const [assignments, SetAssignments] = useState<Assignment[]>([]);
+  const [tasksByAssignment, SetTasksByAssignment] = useState<Record<string, Task[]>>({});
   const [session, SetSession] = useState<Session | null>(null);
 
   const assignmentSections = [
@@ -55,17 +46,47 @@ export default function Assignments() {
   }, []);
 
   const GetAssignments = async () => {
-    const { data, error } = await supabase
+    const { data: assignmentsData, error: assignmentsError } = await supabase
       .from('assignments')
       .select('*')
       .order('deadline', { ascending: false });
 
-    if (error) {
+    if (assignmentsError) {
       Alert.alert('Assignments could not be fetched, please try again');
       return;
     }
 
-    SetAssignments(data ?? []);
+    const assignmentRows = assignmentsData ?? [];
+    SetAssignments(assignmentRows);
+
+    if (assignmentRows.length === 0) {
+      SetTasksByAssignment({});
+      return;
+    }
+
+    const aIds = assignmentRows.map((assignment) => assignment.aId);
+
+    const { data: tasksData, error: tasksError } = await supabase
+      .from('tasks')
+      .select('*')
+      .in('aId', aIds);
+
+    if (tasksError) {
+      Alert.alert('Assignment tasks could not be fetched, please try again');
+      SetTasksByAssignment({});
+      return;
+    }
+
+    const groupedTasks: Record<string, Task[]> = {};
+
+    for (const task of tasksData ?? []) {
+      if (!groupedTasks[task.aId]) {
+        groupedTasks[task.aId] = [];
+      }
+      groupedTasks[task.aId].push(task);
+    }
+
+    SetTasksByAssignment(groupedTasks);
   };
 
   useFocusEffect(
@@ -178,6 +199,9 @@ export default function Assignments() {
           renderItem={({ item }) => {
             const isOwner = session?.user.id === item.uId;
 
+            const assignmentTasks = tasksByAssignment[item.aId] ?? [];
+            const progress = assignmentTasks.length === 0 ? 0 : Math.round((assignmentTasks.filter(task => task.isCompleted).length / assignmentTasks.length) * 100);
+
             return (
               <View className="mb-4 rounded-3xl border border-app-border bg-app-surface p-4 shadow-sm">
                 <Pressable
@@ -227,6 +251,28 @@ export default function Assignments() {
                         <Text className="text-xs font-semibold text-text-secondary">
                           Deadline: {item.deadline || 'No deadline'}
                         </Text>
+                      </View>
+
+                      <View style={{ marginTop: 10 }}>
+                        <Text style={{ marginBottom: 4 }}>{progress}%</Text>
+
+                        <View
+                          style={{
+                            width: "100%",
+                            height: 12,
+                            backgroundColor: "#D9D9D9",
+                            borderRadius: 999,
+                            overflow: "hidden",
+                          }}
+                        >
+                          <View
+                            style={{
+                              width: `${progress}%`,
+                              height: "100%",
+                              backgroundColor: "#4CAF50",
+                            }}
+                          />
+                        </View>
                       </View>
                     </View>
                   </View>

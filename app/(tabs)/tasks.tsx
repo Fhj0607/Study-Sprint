@@ -1,5 +1,6 @@
 import { defaultStyles } from '@/constants/defaultStyles';
 import { supabase } from '@/lib/supabase';
+import type { Task } from '@/lib/types';
 import { Ionicons } from '@expo/vector-icons';
 import { Session } from '@supabase/supabase-js';
 import { router, Stack, useFocusEffect } from 'expo-router';
@@ -11,16 +12,6 @@ import {
   Text,
   View,
 } from 'react-native';
-
-type Task = {
-  tId: string;
-  title: string;
-  description: string;
-  isCompleted: boolean;
-  lastChanged: string;
-  uId: string;
-  aId: string;
-};
 
 export default function Tasks() {
   const [tasks, SetTasks] = useState<Task[]>([]);

@@ -1,4 +1,5 @@
 import { defaultStyles } from '@/constants/defaultStyles';
+import { CheckAssignmentCompletion } from '@/lib/progress';
 import { supabase } from '@/lib/supabase';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
@@ -55,6 +56,14 @@ export default function CreateTask() {
     }
 
     Alert.alert('Task successfully created!');
+
+    if (aId) {
+      try {
+        await CheckAssignmentCompletion(aId);
+      } catch {
+        Alert.alert("Failed to update assignment completion state");
+      }
+    }
 
     SetTitle('');
     SetDescription('');

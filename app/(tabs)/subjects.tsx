@@ -1,5 +1,6 @@
 import { defaultStyles } from '@/constants/defaultStyles';
 import { supabase } from '@/lib/supabase';
+import type { Subject } from '@/lib/types';
 import { Ionicons } from '@expo/vector-icons';
 import { Session } from '@supabase/supabase-js';
 import { router, Stack, useFocusEffect } from 'expo-router';
@@ -11,15 +12,6 @@ import {
   Text,
   View,
 } from 'react-native';
-
-type Subject = {
-  sId: string;
-  title: string;
-  description: string;
-  isActive: boolean;
-  lastChanged: string;
-  uId: string;
-};
 
 export default function Subjects() {
   const [subjects, SetSubjects] = useState<Subject[]>([]);

@@ -1,29 +1,10 @@
 import { defaultStyles } from '@/constants/defaultStyles';
 import { supabase } from '@/lib/supabase';
+import type { Assignment, Subject } from '@/lib/types';
 import { Session } from '@supabase/supabase-js';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Button, Pressable, SectionList, Text, View } from "react-native";
-
-type Subject = {
-  sId: string;
-  title: string;
-  description: string;
-  isActive: boolean;
-  lastChanged: string;
-  uId: string;
-}
-
-type Assignment = {
-  aId: string;
-  title: string;
-  description: string;
-  deadline: string;
-  isCompleted: boolean;
-  lastChanged: string;
-  uId: string;
-  sId: string;
-}
 
 export default function ViewDetailsSubject() {
   const { sId } = useLocalSearchParams<{ sId: string }>();
@@ -130,6 +111,10 @@ export default function ViewDetailsSubject() {
         }
       ]
     )
+  }
+
+  const CalculateSubjectCompletion = async () => {
+    
   }
 
   return (
