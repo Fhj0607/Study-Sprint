@@ -1,5 +1,6 @@
 import { defaultStyles } from '@/constants/defaultStyles';
 import { GetAssignmentNotificationId, RemoveAssignmentNotificationId, SaveAssignmentNotificationId } from '@/lib/asyncStorage';
+import { CheckSubjectCompletion } from '@/lib/progress';
 import { supabase } from '@/lib/supabase';
 import type { Assignment } from '@/lib/types';
 import * as Notifications from 'expo-notifications';
@@ -112,6 +113,14 @@ export default function EditAssignment() {
         if (nId) {
           await SaveAssignmentNotificationId(assignmentData.aId, nId);
         }
+      }
+    }
+
+    if (assignmentData.sId) {
+      try {
+        await CheckSubjectCompletion(assignmentData.sId);
+      } catch {
+        Alert.alert("Failed to update subject status");
       }
     }
 

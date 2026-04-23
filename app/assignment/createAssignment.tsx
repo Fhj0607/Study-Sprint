@@ -1,5 +1,6 @@
 import { defaultStyles } from '@/constants/defaultStyles';
 import * as AsyncStorage from '@/lib/asyncStorage';
+import { CheckSubjectCompletion } from '@/lib/progress';
 import { supabase } from '@/lib/supabase';
 import * as Notifications from 'expo-notifications';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
@@ -90,6 +91,14 @@ export default function CreateAssignment() {
 
       if (nId) {
         await AsyncStorage.SaveAssignmentNotificationId(assignmentData.aId, nId);
+      }
+    }
+
+    if (sId) {
+      try {
+        await CheckSubjectCompletion(sId);
+      } catch {
+        Alert.alert("Failed to update subject status");
       }
     }
 

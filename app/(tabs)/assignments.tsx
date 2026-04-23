@@ -1,4 +1,5 @@
 import { defaultStyles } from '@/constants/defaultStyles';
+import { CheckSubjectCompletion } from '@/lib/progress';
 import { supabase } from '@/lib/supabase';
 import type { Assignment, Task } from '@/lib/types';
 import { Ionicons } from '@expo/vector-icons';
@@ -97,7 +98,7 @@ export default function Assignments() {
     }, [session])
   );
 
-  const DeleteAssignment = async (aId: string) => {
+  const DeleteAssignment = async (aId: string, sId: string) => {
     Alert.alert(
       'Delete Assignment',
       'Are you sure you want to delete this assignment?',
@@ -121,6 +122,13 @@ export default function Assignments() {
             }
 
             Alert.alert('Assignment deleted successfully!');
+
+            try {
+              await CheckSubjectCompletion(sId);
+            } catch {
+              Alert.alert("Failed to update subject status");
+            }
+
             GetAssignments();
           },
         },
@@ -296,7 +304,7 @@ export default function Assignments() {
 
                     <Pressable
                       className="flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-surface py-3"
-                      onPress={() => DeleteAssignment(item.aId)}
+                      onPress={() => DeleteAssignment(item.aId, item.sId)}
                     >
                       <Text className="text-sm font-bold text-status-danger">
                         Delete

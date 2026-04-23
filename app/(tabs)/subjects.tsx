@@ -1,6 +1,6 @@
 import { defaultStyles } from '@/constants/defaultStyles';
 import { supabase } from '@/lib/supabase';
-import type { Subject } from '@/lib/types';
+import type { Assignment, Subject } from '@/lib/types';
 import { Ionicons } from '@expo/vector-icons';
 import { Session } from '@supabase/supabase-js';
 import { router, Stack, useFocusEffect } from 'expo-router';
@@ -15,6 +15,7 @@ import {
 
 export default function Subjects() {
   const [subjects, SetSubjects] = useState<Subject[]>([]);
+  const [assignmentsBySubject, SetAssignmentsBySubject] = useState<Record<string, Assignment[]>>({});
   const [session, SetSession] = useState<Session | null>(null);
 
   const subjectSections = [
@@ -45,17 +46,47 @@ export default function Subjects() {
   }, []);
 
   const GetSubjects = async () => {
-    const { data, error } = await supabase
+    const { data: subjectsData, error: subjectsError } = await supabase
       .from('subjects')
       .select('*')
       .order('lastChanged', { ascending: false });
 
-    if (error) {
+    if (subjectsError) {
       Alert.alert('Subjects could not be fetched, please try again');
       return;
     }
 
-    SetSubjects(data ?? []);
+    const subjectRows = subjectsData ?? [];
+    SetSubjects(subjectsData ?? []);
+
+    if (subjectRows.length === 0) {
+      SetAssignmentsBySubject({});
+      return;
+    }
+    
+    const sIds = subjectRows.map((subject) => subject.sId);
+    
+    const { data: assignmentsData, error: assignmentsError } = await supabase
+      .from('assignments')
+      .select('*')
+      .in('sId', sIds);
+    
+    if (assignmentsError) {
+      Alert.alert('Subject assignments could not be fetched, please try again');
+      SetAssignmentsBySubject({});
+      return;
+    }
+    
+    const groupedAssignments: Record<string, Assignment[]> = {};
+    
+    for (const assignment of assignmentsData ?? []) {
+      if (!groupedAssignments[assignment.sId]) {
+        groupedAssignments[assignment.sId] = [];
+      }
+      groupedAssignments[assignment.sId].push(assignment);
+    }
+    
+    SetAssignmentsBySubject(groupedAssignments);
   };
 
   useFocusEffect(
@@ -169,6 +200,9 @@ export default function Subjects() {
           renderItem={({ item }) => {
             const isOwner = session?.user.id === item.uId;
 
+            const subjectAssignments = assignmentsBySubject[item.sId] ?? [];
+            const progress = subjectAssignments.length === 0 ? 0 : Math.round((subjectAssignments.filter(assignment => assignment.isCompleted).length / subjectAssignments.length) * 100);
+
             return (
               <View className="mb-4 rounded-3xl border border-app-border bg-app-surface p-4 shadow-sm">
                 <Pressable
@@ -218,6 +252,27 @@ export default function Subjects() {
                         <Text className="text-xs font-semibold text-text-secondary">
                           {item.isActive ? 'Active' : 'Inactive'}
                         </Text>
+                      </View>
+                      <View style={{ marginTop: 10 }}>
+                        <Text style={{ marginBottom: 4 }}>{progress}%</Text>
+                        
+                        <View
+                          style={{
+                            width: "100%",
+                            height: 12,
+                            backgroundColor: "#D9D9D9",
+                            borderRadius: 999,
+                            overflow: "hidden",
+                          }}
+                        >
+                          <View
+                            style={{
+                              width: `${progress}%`,
+                              height: "100%",
+                              backgroundColor: "#4CAF50",
+                            }}
+                          />
+                        </View>
                       </View>
                     </View>
                   </View>
