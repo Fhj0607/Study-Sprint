@@ -23,11 +23,7 @@ const ITEM_SIZE = width * 0.38;
 const ITEM_SPACING = (width - ITEM_SIZE) / 2;
 const TIMER_UNIT_IN_SECONDS = 60; // Set to 60 for timer value to represent minutes
 const HOLD_TO_CANCEL_MS = 2000;
-const CANCEL_ANIMATION_DELAY_MS = 250;
-const CANCEL_RELEASE_MS = 750;
-const START_TRANSITION_MS = 300;
-const TIMER_RESET_MS = 300;
-const COUNTDOWN_FADE_MS = 180;
+const CANCEL_ANIMATION_DELAY_MS = 250
 const placeholderTask = {
   name: 'Read chapter 4',
   description: 'Focus on the summary questions and write down anything unclear.',
@@ -41,72 +37,44 @@ function formatTime(totalSeconds: number) {
     seconds.toString().padStart(2, '0')}`;
 }
 
-function getCancelOverlayTarget({
-  containerHeight,
-  holdStartedAt,
-  sessionStartedAt,
-  sessionDurationMs,
-}: {
-  containerHeight: number;
-  holdStartedAt: number;
-  sessionStartedAt: number;
-  sessionDurationMs: number;
-}) {
-  const now = Date.now();
-  const elapsedHoldMs = now - holdStartedAt;
-  const remainingHoldMs = Math.max(1, HOLD_TO_CANCEL_MS - elapsedHoldMs);
-  const elapsedAtCancelMs = now + remainingHoldMs - sessionStartedAt;
-  const expectedProgress = elapsedAtCancelMs / sessionDurationMs;
-  const clampedProgress = Math.max(0, Math.min(expectedProgress, 1));
-  const expectedYAtCancel = containerHeight * clampedProgress;
-  const cancelOffset = Math.max(0, containerHeight - expectedYAtCancel);
-
-  return { cancelOffset, remainingHoldMs };
-}
-
 export default function App() {
-  const [containerHeight, setContainerHeight] = React.useState(0);
-  const [duration, setDuration] = React.useState(timers[0]);
-  const [timerIsRunning, setIsRunning] = React.useState(false);
-  const [timeRemaining, setTimeRemaining] = React.useState(0);
-
-  // Animated values
+  const [containerHeight, setContainerHeight] = React.useState(0)
+  const [duration, setDuration] = React.useState(timers[0])
+  const [timerIsRunning, setIsRunning] = React.useState(false)
+  const [timeRemaining, setTimeRemaining] = React.useState(0)
   const scrollX = React.useRef(new Animated.Value(0)).current;
   const timerAnimation = React.useRef(new Animated.Value(0)).current;
   const buttonAnimation = React.useRef(new Animated.Value(0)).current;
   const taskDetailsAnimation = React.useRef(new Animated.Value(0)).current;
   const countdownAnimation = React.useRef(new Animated.Value(0)).current;
-  const cancelButtonAnimation = React.useRef(new Animated.Value(0)).current;
-  const pressedButtonAnimation = React.useRef(new Animated.Value(0)).current;
-  const focusModeAnimation = React.useRef(new Animated.Value(0)).current; // 0 = timer inactive, 1 = timer active
-  const timerOverlayOpacity = React.useRef(new Animated.Value(1)).current;
-  const cancelOverlayAnimation = React.useRef(new Animated.Value(0)).current;
-
-  // Timer/session refs
   const countdownRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+  const cancelHoldTimeoutRef  = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const runningAnimationRef = React.useRef<Animated.CompositeAnimation | null>(null);
   const progressAnimationRef = React.useRef<Animated.CompositeAnimation | null>(null);
   const sessionStartedAtRef = React.useRef<number | null>(null);
   const sessionDurationMsRef = React.useRef(0);
-
-  // Cancel-hold refs
-  const cancelHoldTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelButtonAnimation = React.useRef(new Animated.Value(0)).current;
+  const pressedButtonAnimation = React.useRef(new Animated.Value(0)).current;
+  const focusModeAnimation = React.useRef(new Animated.Value(0)).current; // 0 = timer inactive, 1 = timer active
   const cancelHoldAnimationDelayRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancelAccelStartedRef = React.useRef(false);
   const cancelHoldActiveRef = React.useRef(false);
   const cancelHoldIdRef = React.useRef(0);
   const cancelHoldStartedAtRef = React.useRef(0);
+  const cancelOverlayAnimation = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
-    if (containerHeight > 0 && !timerIsRunning) {
-      timerAnimation.setValue(containerHeight);
-    }
-  }, [containerHeight, timerIsRunning, timerAnimation]);
+      if (containerHeight > 0 && !timerIsRunning) {
+        timerAnimation.setValue(containerHeight);
+      }
+    }, [containerHeight, timerIsRunning, timerAnimation]);
+
+  const timerOverlayOpacity = React.useRef(new Animated.Value(1)).current;
 
   const cancelButtonOpacity = cancelButtonAnimation;
 
   const pressedButtonScale = pressedButtonAnimation.interpolate({
-    inputRange: [0, 1],
+    inputRange: [0,  1],
     outputRange: [1, 0.90],
   });
 
@@ -139,59 +107,30 @@ export default function App() {
     outputRange: [1, 0.55],
   });
 
-  const startButtonOpacity = buttonAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 0]
+  const opacity = buttonAnimation.interpolate({
+      inputRange: [0, 1],
+      outputRange: [1, 0]
   });
 
-  const startButtonTranslateY = buttonAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 200]
+  const translateY = buttonAnimation.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 200]
   });
 
   const inactiveTimerNumberOpacity = buttonAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 0]
+      inputRange: [0, 1],
+      outputRange: [1, 0]
   });
 
   const taskDetailsOpacity = taskDetailsAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 1]
+      inputRange: [0, 1],
+      outputRange: [0, 1]
   });
 
   const taskDetailsTranslateY = taskDetailsAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [20, 0]
+      inputRange: [0, 1],
+      outputRange: [20, 0]
   });
-
-  const clearCountdown = React.useCallback(() => {
-    if (countdownRef.current) {
-      clearInterval(countdownRef.current);
-      countdownRef.current = null;
-    }
-  }, []);
-
-  const clearCancelHoldTimers = React.useCallback(() => {
-    if (cancelHoldTimeoutRef.current) {
-      clearTimeout(cancelHoldTimeoutRef.current);
-      cancelHoldTimeoutRef.current = null;
-    }
-
-    if (cancelHoldAnimationDelayRef.current) {
-      clearTimeout(cancelHoldAnimationDelayRef.current);
-      cancelHoldAnimationDelayRef.current = null;
-    }
-  }, []);
-
-  const stopTimerAnimations = React.useCallback(() => {
-    runningAnimationRef.current?.stop();
-    runningAnimationRef.current = null;
-
-    progressAnimationRef.current?.stop();
-    progressAnimationRef.current = null;
-
-    cancelOverlayAnimation.stopAnimation();
-  }, [cancelOverlayAnimation]);
 
   const animateButtonPress = React.useCallback((pressed: boolean) => {
     Animated.timing(pressedButtonAnimation, {
@@ -202,11 +141,19 @@ export default function App() {
   }, [pressedButtonAnimation]);
 
   const cancelTimer = React.useCallback(() => {
-    if (!timerIsRunning) {
+    if (!timerIsRunning){
       return;
     }
-    clearCountdown();
-    stopTimerAnimations();
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+      countdownRef.current = null;
+    }
+    runningAnimationRef.current?.stop();
+    runningAnimationRef.current = null;
+
+    progressAnimationRef.current?.stop();
+    progressAnimationRef.current = null;
+    cancelOverlayAnimation.stopAnimation();
 
     Animated.parallel([
       Animated.timing(cancelButtonAnimation, {
@@ -220,18 +167,18 @@ export default function App() {
         useNativeDriver: true
       }),
       Animated.timing(focusModeAnimation, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: true
-      }),
+      toValue: 0,
+      duration: 250,
+      useNativeDriver: true
+    }),
       Animated.timing(countdownAnimation, {
         toValue: 0,
-        duration: COUNTDOWN_FADE_MS,
+        duration: 180,
         useNativeDriver: true
       }),
       Animated.timing(timerAnimation, {
         toValue: containerHeight,
-        duration: TIMER_RESET_MS,
+        duration: 300,
         useNativeDriver: true
       }),
       Animated.timing(timerOverlayOpacity, {
@@ -244,24 +191,23 @@ export default function App() {
         duration: 120,
         useNativeDriver: true,
       })
-    ]).start(() => {
-      Animated.timing(buttonAnimation, {
-        toValue: 0,
-        duration: 220,
-        useNativeDriver: true
-      })
+      ]).start(() => {
+        Animated.timing(buttonAnimation, {
+          toValue: 0,
+          duration: 220,
+          useNativeDriver: true
+        })
         .start(() => {
-          timerAnimation.setValue(containerHeight);
+          timerAnimation.setValue(containerHeight)
           cancelOverlayAnimation.setValue(0);
           timerOverlayOpacity.setValue(1);
           setTimeRemaining(0);
           setIsRunning(false);
         });
-    })
-  }, [timerOverlayOpacity, buttonAnimation, cancelButtonAnimation,
-    cancelOverlayAnimation, clearCountdown, containerHeight, countdownAnimation,
-    focusModeAnimation, stopTimerAnimations, taskDetailsAnimation,
-    timerAnimation, timerIsRunning]);
+      })
+    }, [timerOverlayOpacity, buttonAnimation, cancelButtonAnimation,
+      cancelOverlayAnimation, containerHeight, countdownAnimation, timerAnimation,
+      timerIsRunning, taskDetailsAnimation, focusModeAnimation]);
 
   const startCancelHold = React.useCallback(() => {
     animateButtonPress(true);
@@ -281,12 +227,14 @@ export default function App() {
       cancelAccelStartedRef.current = true;
       cancelOverlayAnimation.setValue(0);
 
-      const { cancelOffset, remainingHoldMs } = getCancelOverlayTarget({
-        containerHeight,
-        holdStartedAt: cancelHoldStartedAtRef.current,
-        sessionStartedAt: sessionStartedAtRef.current ?? Date.now(),
-        sessionDurationMs: sessionDurationMsRef.current,
-      });
+      const elapsedHoldMs = Date.now() - cancelHoldStartedAtRef.current;
+      const remainingHoldMs = Math.max(1, HOLD_TO_CANCEL_MS - elapsedHoldMs);
+      const sessionStartedAt = sessionStartedAtRef.current ?? Date.now();
+      const elapsedAtCancelMs = Date.now() + remainingHoldMs - sessionStartedAt;
+      const expectedProgress = elapsedAtCancelMs / sessionDurationMsRef.current;
+      const clampedProgress = Math.max(0, Math.min(expectedProgress, 1));
+      const expectedYAtCancel = containerHeight * clampedProgress;
+      const cancelOffset = Math.max(0, containerHeight - expectedYAtCancel);
 
       Animated.timing(cancelOverlayAnimation, {
         toValue: cancelOffset,
@@ -304,7 +252,7 @@ export default function App() {
       cancelHoldActiveRef.current = false;
       cancelHoldIdRef.current += 1;
       cancelAccelStartedRef.current = false;
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
       cancelTimer();
       cancelHoldTimeoutRef.current = null;
     }, HOLD_TO_CANCEL_MS);
@@ -312,40 +260,40 @@ export default function App() {
 
   const finishTimer = React.useCallback(() => {
     Animated.parallel([
-      Animated.timing(countdownAnimation, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true
-      }),
-      Animated.timing(focusModeAnimation, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: true
-      }),
-      Animated.timing(taskDetailsAnimation, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true
-      })
-    ]).start(() => {
-      Animated.parallel([
-        Animated.timing(buttonAnimation, {
+        Animated.timing(countdownAnimation, {
           toValue: 0,
-          duration: START_TRANSITION_MS,
+          duration: 200,
           useNativeDriver: true
         }),
-        Animated.timing(cancelButtonAnimation, {
+        Animated.timing(focusModeAnimation, {
           toValue: 0,
-          duration: START_TRANSITION_MS,
+          duration: 250,
           useNativeDriver: true
         }),
+        Animated.timing(taskDetailsAnimation, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true
+        })
       ]).start(() => {
-        setIsRunning(false);
+        Animated.parallel([
+          Animated.timing(buttonAnimation, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true
+          }),
+          Animated.timing(cancelButtonAnimation, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true
+          }),
+        ]).start(() => {
+          setIsRunning(false);
         /* TODO
           Implement store and send of ellapsed time value in seconds to DB
           for total time spent statistic
         */
-      })
+        })
     })
   }, [countdownAnimation, focusModeAnimation, taskDetailsAnimation, buttonAnimation, cancelButtonAnimation]);
 
@@ -380,7 +328,15 @@ export default function App() {
     cancelHoldActiveRef.current = false;
     cancelHoldIdRef.current += 1;
 
-    clearCancelHoldTimers();
+    if (cancelHoldTimeoutRef.current)  {
+      clearTimeout(cancelHoldTimeoutRef.current);
+      cancelHoldTimeoutRef.current = null;
+    }
+
+    if (cancelHoldAnimationDelayRef.current) {
+      clearTimeout(cancelHoldAnimationDelayRef.current);
+      cancelHoldAnimationDelayRef.current = null;
+    }
 
     if (!cancelAccelStartedRef.current) {
       return;
@@ -391,18 +347,18 @@ export default function App() {
       cancelOverlayAnimation.setValue(currentOffset);
       Animated.timing(cancelOverlayAnimation, {
         toValue: 0,
-        duration: CANCEL_RELEASE_MS,
+        duration: 750,
         easing: Easing.in(Easing.bounce),
         useNativeDriver: true
       }).start();
     });
-  }, [animateButtonPress, cancelOverlayAnimation, clearCancelHoldTimers]);
+  }, [animateButtonPress, cancelOverlayAnimation]);
 
-  const startTimer = React.useCallback(() => {
+  const animation = React.useCallback(() => {
     if (timerIsRunning || containerHeight === 0) {
-      return;
+        return;
     }
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
     setIsRunning(true);
     taskDetailsAnimation.setValue(0);
     countdownAnimation.setValue(0);
@@ -414,38 +370,44 @@ export default function App() {
     sessionStartedAtRef.current = Date.now();
     sessionDurationMsRef.current = totalSeconds * 1000;
 
-    clearCountdown();
+    if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+        countdownRef.current = null;
+      }
     countdownRef.current = setInterval(() => {
       setTimeRemaining((currentTime) => {
         if (currentTime <= 1) {
-          clearCountdown();
+          if (countdownRef.current) {
+            clearInterval(countdownRef.current);
+            countdownRef.current = null;
+          }
           return 0;
-        }
-        return currentTime - 1;
-      });
+          }
+         return currentTime -1;
+        });
     }, 1000);
 
     const runningAnimation = Animated.sequence([
       Animated.parallel([
         Animated.timing(buttonAnimation, {
           toValue: 1,
-          duration: START_TRANSITION_MS,
+          duration: 300,
           useNativeDriver: true
         }),
         Animated.timing(cancelButtonAnimation, {
           toValue: 1,
-          duration: START_TRANSITION_MS,
+          duration: 300,
           useNativeDriver: true
         }),
 
         Animated.timing(countdownAnimation, {
           toValue: 1,
-          duration: START_TRANSITION_MS,
+          duration: 300,
           useNativeDriver: true
         }),
         Animated.timing(timerAnimation, {
           toValue: 0,
-          duration: START_TRANSITION_MS,
+          duration: 300,
           useNativeDriver: true
         }),
       ]),
@@ -472,20 +434,24 @@ export default function App() {
       startProgressAnimation(0);
     });
   }, [cancelButtonAnimation, countdownAnimation,
-    buttonAnimation, cancelOverlayAnimation, clearCountdown, taskDetailsAnimation,
+    buttonAnimation, cancelOverlayAnimation, taskDetailsAnimation,
     timerAnimation, focusModeAnimation, duration, timerIsRunning, containerHeight, startProgressAnimation]);
-  const renderTimerOverlay = () => (
+return (
+  <View style={styles.container}
+  onLayout={(event) => {
+    setContainerHeight(event.nativeEvent.layout.height);
+  }}>
+    <StatusBar hidden />
     <Animated.View
-      style={[StyleSheet.absoluteFillObject, {
-        height: containerHeight,
-        width,
-        backgroundColor: colors.red,
-        transform: [{ translateY: timerOverlayTranslateY }]
-      }]}
+    style={[StyleSheet.absoluteFillObject, {
+      height: containerHeight,
+      width,
+      backgroundColor: colors.red,
+      transform: [{
+          translateY: timerOverlayTranslateY
+      }]
+    }]}
     />
-  );
-
-  const renderStartButton = () => (
     <Animated.View
       style={[
         StyleSheet.absoluteFillObject,
@@ -493,71 +459,64 @@ export default function App() {
           justifyContent: 'flex-end',
           alignItems: 'center',
           paddingBottom: 100,
-          opacity: startButtonOpacity,
-          transform: [{ translateY: startButtonTranslateY }]
+          opacity,
+          transform: [{
+              translateY
+          }]
         },
       ]}>
-      <TouchableOpacity
+        <TouchableOpacity
         disabled={timerIsRunning}
-        onPress={startTimer}
+        onPress={animation}
         onPressIn={() => animateButtonPress(true)}
         onPressOut={() => animateButtonPress(false)}>
-        <Animated.View style={[
-          styles.roundButton,
+          <Animated.View style={[styles.roundButton,
           {
             transform: [{ scale: pressedButtonScale }],
           },
-        ]}>
-          <Text className='text-text-main text-xl'>Start</Text>
-          <Text className='text-text-main text-xl'>Sprint</Text>
-        </Animated.View>
-      </TouchableOpacity>
+          ]}>
+            <Text className='text-text-main text-xl'>Start</Text>
+            <Text className='text-text-main text-xl'>Sprint</Text>
+          </Animated.View>
+        </TouchableOpacity>
     </Animated.View>
-  );
-
-  const renderCancelButton = () => (
     <Animated.View
-      pointerEvents={timerIsRunning? 'auto' : 'none'}
-      style={[
-        styles.cancelButtonContainer,
-        {
-          opacity: cancelButtonOpacity,
-          transform: [{translateY: cancelButtonTranslateY}],
-        },
-      ]}>
+    pointerEvents={timerIsRunning? 'auto' : 'none'}
+    style={[
+      styles.cancelButtonContainer,
+      {
+        opacity: cancelButtonOpacity,
+        transform: [{translateY: cancelButtonTranslateY}],
+      },
+    ]}>
       <TouchableOpacity
         onPressIn={startCancelHold}
         onPressOut={stopCancelHold}>
-        <Animated.View style={[
-          styles.cancelButton,
+          <Animated.View style={[styles.cancelButton,
           {
             transform: [{ scale: pressedButtonScale }],
           },
-        ]}>
+        ]}
+      >
           <Text className='text-text-main text-xl'>Hold to end sprint</Text>
         </Animated.View>
       </TouchableOpacity>
     </Animated.View>
-  );
-
-  const renderCountdownOverlay = () => (
     <Animated.View
-      pointerEvents="none"
-      style={[
-        styles.countdownOverlay, {
-          opacity: countdownAnimation,
-          transform: [
-            {translateX: countdownTranslateX},
-            {translateY: countdownTranslateY},
-            {scale: countdownScale},
-          ],
-        },
-      ]}>
-      <Text style={styles.countdownText}>{formatTime(timeRemaining)}</Text>
-    </Animated.View>
-  );
-
-  const renderDurationPicker = () => (
+        pointerEvents= 'none'
+        style={[
+          styles.countdownOverlay, {
+            opacity: countdownAnimation,
+            transform: [
+              {translateX: countdownTranslateX},
+              {translateY: countdownTranslateY},
+              {scale: countdownScale},
+            ],
+          },
+        ]}
+        >
+          <Text style= {styles.countdownText}>{formatTime(timeRemaining)}</Text>
+        </Animated.View>
     <View
       style={{
         position: 'absolute',
@@ -566,7 +525,8 @@ export default function App() {
         right: 0,
         flex: 1,
       }}>
-      <Animated.FlatList
+
+        <Animated.FlatList
         data={timers}
         scrollEnabled={!timerIsRunning}
         keyExtractor={item => item.toString()}
@@ -586,74 +546,58 @@ export default function App() {
           const clampedIndex = Math.max(0, Math.min(index, timers.length - 1));
           setDuration(timers[clampedIndex]);
         }}
+
         snapToInterval={ITEM_SIZE}
-        decelerationRate="fast"
+        decelerationRate={"fast"}
         style={{flexGrow: 0}}
         contentContainerStyle={{
           paddingHorizontal: ITEM_SPACING
         }}
         renderItem={({item, index}) => {
+          const timerText = item;
           const inputRange = [
-            (index - 1) * ITEM_SIZE,
-            index * ITEM_SIZE,
-            (index + 1) * ITEM_SIZE,
-          ];
+              (index - 1) * ITEM_SIZE,
+              index * ITEM_SIZE,
+              (index + 1) * ITEM_SIZE,
+          ]
           const normalOpacity = scrollX.interpolate({
-            inputRange,
-            outputRange: [.4, 1, .4]
-          });
-          const timerTextOpacity = Animated.multiply(normalOpacity, inactiveTimerNumberOpacity);
+              inputRange,
+              outputRange: [.4, 1, .4]
+          })
+          const opacity = Animated.multiply(normalOpacity, inactiveTimerNumberOpacity);
           const scale = scrollX.interpolate({
-            inputRange,
-            outputRange: [.7, 1, .7]
-          });
+              inputRange,
+              outputRange: [.7, 1, .7]
+          })
+          return <View style={{width: ITEM_SIZE, justifyContent: 'center', alignItems: 'center'}}>
+              <Animated.Text style={[styles.text, {
+                  opacity,
+                  transform: [{
+                      scale
+                  }]
 
-          return (
-            <View style={styles.timerItem}>
-              <Animated.Text style={[
-                styles.text,
-                {
-                  opacity: timerTextOpacity,
-                  transform: [{ scale }]
-                }
-              ]}>
-                {item}
+              }]}>
+                  {timerText}
               </Animated.Text>
             </View>
-          );
-        }}
-      />
-    </View>
-  );
-
-  const renderTaskDetails = () => (
-    <Animated.View
-      pointerEvents="none"
-      style={[
-        styles.taskDetails,
-        {
-          opacity: taskDetailsOpacity,
-          transform: [{ translateY: taskDetailsTranslateY }]
+          }
         }
-      ]}>
-      <Text style={styles.taskName}>{placeholderTask.name}</Text>
-      <Text style={styles.taskDescription}>{placeholderTask.description}</Text>
-    </Animated.View>
-  );
-
-  return (
-    <View
-      style={styles.container}
-      onLayout={(event) => {
-        setContainerHeight(event.nativeEvent.layout.height);
-      }}>
-      <StatusBar hidden />
-      {renderTimerOverlay()}
-      {renderStartButton()}
-      {renderCancelButton()}
-      {renderCountdownOverlay()}
-      {renderDurationPicker()}
-      {renderTaskDetails()}
+        />
+      </View>
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.taskDetails,
+          {
+            opacity: taskDetailsOpacity,
+            transform: [{
+              translateY: taskDetailsTranslateY
+            }]
+          }
+        ]}>
+        <Text style={styles.taskName}>{placeholderTask.name}</Text>
+        <Text style={styles.taskDescription}>{placeholderTask.description}</Text>
+      </Animated.View>
     </View>
   );
 }
@@ -676,11 +620,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Menlo',
     color: colors.text,
     fontWeight: '900',
-  },
-  timerItem: {
-    width: ITEM_SIZE,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   taskDetails: {
     position: 'absolute',
