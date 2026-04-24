@@ -179,3 +179,10 @@ notes/work-report-timer-2026-04-24.md
 The timer screen moved further toward a focused active-sprint experience. The countdown is now separated from the duration picker, task details have more visual weight, and cancel is treated as a deliberate hold action rather than a normal tap.
 
 The main animation change is that hold-to-cancel now keeps the real timer progress separate from the temporary cancel speed-up effect. The code was also cleaned up so the timer flow is easier to read and continue working on.
+
+## Problems occuring after writing conclusion
+Tried to implement sound by installing expo-audio. This caused the dependency list to update. The diff was massive, and something in the diff caused the entire timer page to break. Logic, animations - the lot. Have reverted back to last known working dependency list, as well as un-refactored a lot of code in an attempt to revert to a functioning state before figuring out that the culprit was dependencies. Need to figure our what is causing the critical failure in the new list.
+
+## Todo
+- Re-refactor to make code cleaner, more readable and easier to maintain.
+- Figure out the dependency issues of later dependency lists
