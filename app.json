@@ -2,7 +2,7 @@
   "expo": {
     "name": "Study-Sprint",
     "slug": "Study-Sprint",
-    "owner": "ikt218g26v-g18",
+    "owner": "ikt205g26v-g18",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -48,7 +48,10 @@
       "reactCompiler": true
     },
     "extra": {
-      "router": {}
+      "router": {},
+      "eas": {
+        "projectId": "2b2ec99b-a2ea-4991-8694-93f9e3d042a3"
+      }
     }
   }
 }
