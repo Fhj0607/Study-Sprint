@@ -103,6 +103,7 @@ export default function CreateSubject() {
               <View className="mb-5">
                 <Text className={labelClassName}>Title</Text>
                 <TextInput
+                  testID="subject-title-input"
                   className={inputClassName}
                   placeholder="Enter subject title"
                   value={title}
@@ -157,6 +158,7 @@ export default function CreateSubject() {
               </Pressable>
 
               <Pressable
+                testID="create-subject-button"
                 className={`h-14 items-center justify-center rounded-2xl ${
                   isSaving ? 'bg-accent-disabled' : 'bg-accent'
                 }`}

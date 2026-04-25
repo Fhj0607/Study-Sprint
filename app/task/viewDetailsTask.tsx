@@ -119,7 +119,7 @@ export default function ViewDetailsTask() {
 
           <View style={defaultStyles.buttonContainer}>
             <Button title="Edit" onPress={() => router.push({pathname: "/task/editTask", params: { tId: task.tId }})} />
-            <Button title="Delete" onPress={() => DeleteTask(task.tId)} />
+            <Button testID = "delete-task-button" title="Delete" onPress={() => DeleteTask(task.tId)} />
           </View>
         </View>
       )}

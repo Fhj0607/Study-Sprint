@@ -88,6 +88,7 @@ export default function EditSubject() {
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
               <View style={defaultStyles.container}>
                 <TextInput
+                  testID="subject-title-input"
                   style={defaultStyles.inputText}
                   placeholder="Title"
                   value={subject.title}
@@ -109,7 +110,7 @@ export default function EditSubject() {
                   <Text style={defaultStyles.checkboxLabel}>{subject.isActive ? 'Active' : 'inactive'}</Text>
                 </Pressable>
 
-                <Button title={isSaving ? "Saving..." : "Save"} onPress={EditSubject} disabled={isSaving} />
+                <Button testID="edit-subject-button" title={isSaving ? "Saving..." : "Save"} onPress={EditSubject} disabled={isSaving} />
                 {isSaving && (
                   <ActivityIndicator size="large" />
                 )}

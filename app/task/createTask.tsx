@@ -115,6 +115,7 @@ export default function CreateTask() {
               <View className="mb-5">
                 <Text className={labelClassName}>Title</Text>
                 <TextInput
+                  testID="task-title-input"
                   className={inputClassName}
                   placeholder="Enter task title"
                   value={title}
@@ -169,6 +170,7 @@ export default function CreateTask() {
               </Pressable>
 
               <Pressable
+                testID="create-task-button"
                 className={`h-14 items-center justify-center rounded-2xl ${
                   isSaving ? 'bg-accent-disabled' : 'bg-accent'
                 }`}

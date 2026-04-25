@@ -149,6 +149,7 @@ export default function EditAssignment() {
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
               <View style={defaultStyles.container}>
                 <TextInput
+                  testID="assignment-title-input"
                   style={defaultStyles.inputText}
                   placeholder="Title"
                   value={assignment.title}
@@ -176,7 +177,7 @@ export default function EditAssignment() {
                   <Text style={defaultStyles.checkboxLabel}>{assignment.isCompleted ? 'Completed' : 'Not Completed'}</Text>
                 </Pressable>
 
-                <Button title={isSaving ? "Saving..." : "Save"} onPress={EditAssignment} disabled={isSaving} />
+                <Button testID="edit-assignment-button" title={isSaving ? "Saving..." : "Save"} onPress={EditAssignment} disabled={isSaving} />
                 {isSaving && (
                   <ActivityIndicator size="large" />
                 )}

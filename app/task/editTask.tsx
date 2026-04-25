@@ -98,6 +98,7 @@ export default function EditTask() {
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
               <View style={defaultStyles.container}>
                 <TextInput
+                  testID="task-title-input"
                   style={defaultStyles.inputText}
                   placeholder="Title"
                   value={task.title}
@@ -119,7 +120,7 @@ export default function EditTask() {
                   <Text style={defaultStyles.checkboxLabel}>{task.isCompleted ? 'Completed' : 'Not Completed'}</Text>
                 </Pressable>
 
-                <Button title={isSaving ? "Saving..." : "Save"} onPress={EditTask} disabled={isSaving} />
+                <Button testID="edit-task-button" title={isSaving ? "Saving..." : "Save"} onPress={EditTask} disabled={isSaving} />
                 {isSaving && (
                   <ActivityIndicator size="large" />
                 )}

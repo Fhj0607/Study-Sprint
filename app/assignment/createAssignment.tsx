@@ -153,6 +153,7 @@ export default function CreateAssignment() {
               <View className="mb-5">
                 <Text className={labelClassName}>Title</Text>
                 <TextInput
+                  testID = "assignment-title-input"
                   className={inputClassName}
                   placeholder="Enter assignment title"
                   value={title}
@@ -219,6 +220,7 @@ export default function CreateAssignment() {
               </Pressable>
 
               <Pressable
+                testID = "create-assignment-button"
                 className={`h-14 items-center justify-center rounded-2xl ${
                   isSaving ? 'bg-accent-disabled' : 'bg-accent'
                 }`}

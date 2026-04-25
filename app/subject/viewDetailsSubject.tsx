@@ -186,7 +186,7 @@ export default function ViewDetailsSubject() {
             </View>
 
             <Button title="Edit" onPress={() => router.push({pathname: "/subject/editSubject", params: { sId: subject.sId }})} />
-            <Button title="Delete" onPress={() => DeleteSubject(subject.sId)} />
+            <Button testID = "delete-subject-button" title="Delete" onPress={() => DeleteSubject(subject.sId)} />
 
             <View style={defaultStyles.buttonContainer}>
               <Button title="Create Assignment" onPress={() => router.push({pathname: "/assignment/createAssignment", params: { sId: subject.sId }})} />

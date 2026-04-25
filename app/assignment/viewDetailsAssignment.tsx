@@ -198,7 +198,7 @@ export default function ViewDetailsAssignment() {
             </View>
 
             <Button title="Edit" onPress={() => router.push({pathname: "/assignment/editAssignment", params: { aId: assignment.aId }})} />
-            <Button title="Delete" onPress={() => DeleteAssignment(assignment.aId)} />
+            <Button testID = "delete-assignment-button" title="Delete" onPress={() => DeleteAssignment(assignment.aId)} />
           </View>
 
           <View style={defaultStyles.buttonContainer}>
@@ -224,7 +224,7 @@ export default function ViewDetailsAssignment() {
                   {isOwner && (
                     <View style={defaultStyles.buttonContainer}>
                       <Button title="Edit" onPress={() => router.push({pathname: "/task/editTask", params: { tId: item.tId }})} />
-                      <Button title="Delete" onPress={() => DeleteTask(item.tId, item.tId)} />
+                      <Button title="Delete" onPress={() => DeleteTask(item.tId, item.aId)} />
                     </View>
                   )}
                 </View>
