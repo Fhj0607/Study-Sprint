@@ -186,3 +186,6 @@ Tried to implement sound by installing expo-audio. This caused the dependency li
 ## Todo
 - Re-refactor to make code cleaner, more readable and easier to maintain.
 - Figure out the dependency issues of later dependency lists
+
+## Conclusion of dependecy saga
+There was a mismatch in the nativewind dependency, with my one being ^4.2.3 and the other list being ^4.1.23. This cause my entire timer screen to fail. Animations got borked, buttons not working properly, duration picker only showing 2 indexes... the works. Solution - keepp nativewind dependency to ^4.2.3
