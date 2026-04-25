@@ -1,18 +1,10 @@
 import { defaultStyles } from '@/constants/defaultStyles';
+import { CheckAssignmentCompletion } from '@/lib/progress';
 import { supabase } from '@/lib/supabase';
+import type { Task } from '@/lib/types';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Button, Keyboard, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, TouchableWithoutFeedback, View } from 'react-native';
-
-type Task = {
-  tId: string;
-  title: string;
-  description: string;
-  isCompleted: boolean;
-  lastChanged: string;
-  uId: string;
-  aId: string;
-}
 
 export default function EditTask() {
   const { tId } = useLocalSearchParams<{ tId: string }>();
@@ -72,6 +64,14 @@ export default function EditTask() {
     }
 
     Alert.alert("Task successfully edited!");
+
+    if (task.aId) {
+      try {
+        await CheckAssignmentCompletion(task.aId);
+      } catch {
+        Alert.alert("Failed to update assignment completion state");
+      }
+    }
 
     router.back();
   }

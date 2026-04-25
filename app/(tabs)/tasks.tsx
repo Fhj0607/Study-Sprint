@@ -1,5 +1,7 @@
 import { defaultStyles } from '@/constants/defaultStyles';
+import { CheckAssignmentCompletion } from '@/lib/progress';
 import { supabase } from '@/lib/supabase';
+import type { Task } from '@/lib/types';
 import { Ionicons } from '@expo/vector-icons';
 import { Session } from '@supabase/supabase-js';
 import { router, Stack, useFocusEffect } from 'expo-router';
@@ -11,16 +13,6 @@ import {
   Text,
   View,
 } from 'react-native';
-
-type Task = {
-  tId: string;
-  title: string;
-  description: string;
-  isCompleted: boolean;
-  lastChanged: string;
-  uId: string;
-  aId: string;
-};
 
 export default function Tasks() {
   const [tasks, SetTasks] = useState<Task[]>([]);
@@ -72,7 +64,7 @@ export default function Tasks() {
     }, [session])
   );
 
-  const DeleteTask = async (tId: string) => {
+  const DeleteTask = async (tId: string, aId: string) => {
     Alert.alert(
       'Delete Task',
       'Are you sure you want to delete this task?',
@@ -96,6 +88,13 @@ export default function Tasks() {
             }
 
             Alert.alert('Task deleted successfully!');
+
+            try {
+              await CheckAssignmentCompletion(aId);
+            } catch {
+              Alert.alert("Failed to update assignment completion state");
+            }
+
             GetTasks();
           },
         },
@@ -246,7 +245,7 @@ export default function Tasks() {
 
                     <Pressable
                       className="flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-surface py-3"
-                      onPress={() => DeleteTask(item.tId)}
+                      onPress={() => DeleteTask(item.tId, item.aId)}
                     >
                       <Text className="text-sm font-bold text-status-danger">
                         Delete

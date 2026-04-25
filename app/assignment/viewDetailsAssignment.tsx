@@ -1,30 +1,11 @@
 import { defaultStyles } from '@/constants/defaultStyles';
+import { CheckAssignmentCompletion, CheckSubjectCompletion } from '@/lib/progress';
 import { supabase } from '@/lib/supabase';
+import type { Assignment, Task } from '@/lib/types';
 import { Session } from '@supabase/supabase-js';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Button, Pressable, SectionList, Text, View } from "react-native";
-
-type Assignment = {
-  aId: string;
-  title: string;
-  description: string;
-  deadline: string;
-  isCompleted: boolean;
-  lastChanged: string;
-  uId: string;
-  sId: string;
-}
-
-type Task = {
-  tId: string;
-  title: string;
-  description: string;
-  isCompleted: boolean;
-  lastChanged: string;
-  uId: string;
-  aId: string;
-}
 
 export default function ViewDetailsAssignment() {
   const { aId } = useLocalSearchParams<{ aId: string }>();
@@ -98,6 +79,17 @@ export default function ViewDetailsAssignment() {
             }
 
             Alert.alert("Assignment deleted successfully!");
+
+            const sId = assignment?.sId;
+
+            if (sId) {
+              try {
+                await CheckSubjectCompletion(sId);
+              } catch {
+                Alert.alert("Failed to update subject status");
+              }
+            }
+
             router.back();
           }
         }
@@ -126,12 +118,23 @@ export default function ViewDetailsAssignment() {
             }
 
             Alert.alert("Task deleted successfully!");
+            
+            if (aId) {
+              try {
+                await CheckAssignmentCompletion(aId);
+              } catch {
+                Alert.alert("Failed to update assignment completion state");
+              }
+            }
+
             GetTasks(aId);
           }
         }
       ]
     )
   }
+
+  const progress = tasks.length === 0 ? 0 : Math.round((tasks.filter(task => task.isCompleted).length / tasks.length) * 100);
 
   return (
     <View style={defaultStyles.container}>
@@ -172,6 +175,27 @@ export default function ViewDetailsAssignment() {
                 {assignment.isCompleted && <Text style={defaultStyles.checkboxMark}>✓</Text>}
             </View>
             <Text style={defaultStyles.body}>{assignment.lastChanged}</Text>
+            <View style={{ marginTop: 10 }}>
+              <Text style={{ marginBottom: 4 }}>{progress}%</Text>
+              
+              <View
+                style={{
+                  width: "100%",
+                  height: 12,
+                  backgroundColor: "#D9D9D9",
+                  borderRadius: 999,
+                  overflow: "hidden",
+                }}
+              >
+                <View
+                  style={{
+                    width: `${progress}%`,
+                    height: "100%",
+                    backgroundColor: "#4CAF50",
+                  }}
+                />
+              </View>
+            </View>
 
             <Button title="Edit" onPress={() => router.push({pathname: "/assignment/editAssignment", params: { aId: assignment.aId }})} />
             <Button title="Delete" onPress={() => DeleteAssignment(assignment.aId)} />

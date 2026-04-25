@@ -1,19 +1,11 @@
 import { defaultStyles } from '@/constants/defaultStyles';
+import { CheckAssignmentCompletion } from '@/lib/progress';
 import { supabase } from '@/lib/supabase';
+import type { Task } from '@/lib/types';
 import { Session } from '@supabase/supabase-js';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Button, Text, View } from "react-native";
-
-type Task = {
-  tId: string;
-  title: string;
-  description: string;
-  isCompleted: boolean;
-  lastChanged: string;
-  uId: string;
-  aId: string;
-}
 
 export default function ViewDetailsTask() {
   const { tId } = useLocalSearchParams<{ tId: string }>();
@@ -69,6 +61,17 @@ export default function ViewDetailsTask() {
             }
 
             Alert.alert("Task deleted successfully!");
+
+            const aId = task?.aId;
+
+            if (aId) {
+              try {
+                await CheckAssignmentCompletion(aId);
+              } catch {
+                Alert.alert("Failed to update assignment completion state");
+              }
+            }
+
             router.back();
           }
         }

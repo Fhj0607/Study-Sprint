@@ -2,6 +2,7 @@
   "expo": {
     "name": "Study Sprint",
     "slug": "Study-Sprint",
+    "owner": "ikt205g26v-g18",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -19,7 +20,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.teodorsa.StudySprint"
     },
     "web": {
       "output": "static",
@@ -44,6 +46,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "2b2ec99b-a2ea-4991-8694-93f9e3d042a3"
+      }
     }
   }
 }

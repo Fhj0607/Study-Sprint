@@ -1,29 +1,11 @@
 import { defaultStyles } from '@/constants/defaultStyles';
+import { CheckSubjectCompletion } from '@/lib/progress';
 import { supabase } from '@/lib/supabase';
+import type { Assignment, Subject } from '@/lib/types';
 import { Session } from '@supabase/supabase-js';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Button, Pressable, SectionList, Text, View } from "react-native";
-
-type Subject = {
-  sId: string;
-  title: string;
-  description: string;
-  isActive: boolean;
-  lastChanged: string;
-  uId: string;
-}
-
-type Assignment = {
-  aId: string;
-  title: string;
-  description: string;
-  deadline: string;
-  isCompleted: boolean;
-  lastChanged: string;
-  uId: string;
-  sId: string;
-}
 
 export default function ViewDetailsSubject() {
   const { sId } = useLocalSearchParams<{ sId: string }>();
@@ -125,12 +107,23 @@ export default function ViewDetailsSubject() {
             }
 
             Alert.alert("Assignment deleted successfully!");
+            
+            if (sId) {
+              try {
+                await CheckSubjectCompletion(sId);
+              } catch {
+                Alert.alert("Failed to update subject status");
+              }
+            }
+
             GetAssignments(sId);
           }
         }
       ]
     )
   }
+
+  const progress = assignments.length === 0 ? 0 : Math.round((assignments.filter(assignment => assignment.isCompleted).length / assignments.length) * 100);
 
   return (
     <View style={defaultStyles.container}>
@@ -170,6 +163,27 @@ export default function ViewDetailsSubject() {
                 {subject.isActive && <Text style={defaultStyles.checkboxMark}>✓</Text>}
             </View>
             <Text style={defaultStyles.body}>{subject.lastChanged}</Text>
+            <View style={{ marginTop: 10 }}>
+              <Text style={{ marginBottom: 4 }}>{progress}%</Text>
+              
+              <View
+                style={{
+                  width: "100%",
+                  height: 12,
+                  backgroundColor: "#D9D9D9",
+                  borderRadius: 999,
+                  overflow: "hidden",
+                }}
+              >
+                <View
+                  style={{
+                    width: `${progress}%`,
+                    height: "100%",
+                    backgroundColor: "#4CAF50",
+                  }}
+                />
+              </View>
+            </View>
 
             <Button title="Edit" onPress={() => router.push({pathname: "/subject/editSubject", params: { sId: subject.sId }})} />
             <Button title="Delete" onPress={() => DeleteSubject(subject.sId)} />

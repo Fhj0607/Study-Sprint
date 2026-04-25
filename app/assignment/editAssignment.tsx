@@ -1,21 +1,12 @@
 import { defaultStyles } from '@/constants/defaultStyles';
 import { GetAssignmentNotificationId, RemoveAssignmentNotificationId, SaveAssignmentNotificationId } from '@/lib/asyncStorage';
+import { CheckSubjectCompletion } from '@/lib/progress';
 import { supabase } from '@/lib/supabase';
+import type { Assignment } from '@/lib/types';
 import * as Notifications from 'expo-notifications';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Button, Keyboard, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, TouchableWithoutFeedback, View } from 'react-native';
-
-type Assignment = {
-  aId: string;
-  title: string;
-  description: string;
-  deadline: string;
-  isCompleted: boolean;
-  lastChanged: string;
-  uId: string;
-  sId: string;
-}
 
 export default function EditAssignment() {
   const { aId } = useLocalSearchParams<{ aId: string }>();
@@ -122,6 +113,14 @@ export default function EditAssignment() {
         if (nId) {
           await SaveAssignmentNotificationId(assignmentData.aId, nId);
         }
+      }
+    }
+
+    if (assignmentData.sId) {
+      try {
+        await CheckSubjectCompletion(assignmentData.sId);
+      } catch {
+        Alert.alert("Failed to update subject status");
       }
     }
 
