@@ -1,3 +1,5 @@
+import type { SubjectColor } from '@/lib/subjectColors';
+
 export type Task = {
   tId: string;
   title: string;
@@ -26,4 +28,5 @@ export type Subject = {
   isActive: boolean;
   lastChanged: string;
   uId: string;
+  color?: SubjectColor;
 };

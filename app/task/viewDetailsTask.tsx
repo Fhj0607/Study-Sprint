@@ -1,36 +1,40 @@
-import { defaultStyles } from '@/constants/defaultStyles';
 import { CheckAssignmentCompletion } from '@/lib/progress';
 import { supabase } from '@/lib/supabase';
 import type { Task } from '@/lib/types';
 import { Session } from '@supabase/supabase-js';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Button, Text, View } from "react-native";
+import { Alert, Pressable, Text, View } from 'react-native';
 
 export default function ViewDetailsTask() {
   const { tId } = useLocalSearchParams<{ tId: string }>();
-  const [task, SetTask] = useState<Task | null>(null)
-  const [session, SetSession] = useState<Session | null>(null)
+  const [task, SetTask] = useState<Task | null>(null);
+  const [session, SetSession] = useState<Session | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => SetSession(data.session ?? null))
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      SetSession(newSession)
-    })
-    return () => sub.subscription.unsubscribe()
-    },
-  [])
+    supabase.auth.getSession().then(({ data }) => SetSession(data.session ?? null));
 
-  const GetTask = async (tId: string) => { 
-    const { data, error } = await supabase.from("tasks").select("*").eq("tId", tId).single();
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      SetSession(newSession);
+    });
+
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  const GetTask = async (taskId: string) => {
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('tId', taskId)
+      .single();
 
     if (error) {
-      Alert.alert("Task could not be fetched, please try again");
+      Alert.alert('Task could not be fetched, please try again');
       return;
     }
 
     SetTask(data ?? null);
-  }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -40,27 +44,28 @@ export default function ViewDetailsTask() {
     }, [session, tId])
   );
 
-  const DeleteTask = async (tId: string) => {
+  const DeleteTask = async (taskId: string) => {
     Alert.alert(
-      "Delete Task",
-      "Are you sure you want to delete this task?",
+      'Delete Task',
+      'Are you sure you want to delete this task?',
       [
         {
-          text: "Cancel",
-          style: "cancel"
+          text: 'Cancel',
+          style: 'cancel',
         },
         {
-          text: "Delete",
-          style: "destructive",
+          text: 'Delete',
+          style: 'destructive',
           onPress: async () => {
-            const { error } = await supabase.from("tasks").delete().eq("tId", tId);
+            const { error } = await supabase
+              .from('tasks')
+              .delete()
+              .eq('tId', taskId);
 
             if (error) {
-              Alert.alert("Task could not be deleted, please try again");
+              Alert.alert('Task could not be deleted, please try again');
               return;
             }
-
-            Alert.alert("Task deleted successfully!");
 
             const aId = task?.aId;
 
@@ -68,61 +73,152 @@ export default function ViewDetailsTask() {
               try {
                 await CheckAssignmentCompletion(aId);
               } catch {
-                Alert.alert("Failed to update assignment completion state");
+                Alert.alert('Failed to update assignment completion state');
               }
             }
 
+            Alert.alert('Task deleted successfully!');
             router.back();
-          }
-        }
+          },
+        },
       ]
-    )
+    );
+  };
+
+  if (!task) {
+    return (
+      <View className="flex-1 bg-app-bg px-5 pt-6">
+        <Stack.Screen
+          options={{
+            title: 'Task Details',
+            headerRight: () => (
+              <Pressable
+                className="rounded-full bg-app-subtle px-4 py-2"
+                onPress={async () => await supabase.auth.signOut()}
+              >
+                <Text className="text-sm font-semibold text-text-secondary">
+                  Logout
+                </Text>
+              </Pressable>
+            ),
+          }}
+        />
+
+        <View className="rounded-3xl border border-app-border bg-app-surface p-5">
+          <Text className="text-2xl font-bold text-text-main">
+            Task not found
+          </Text>
+          <Text className="mt-2 text-base text-text-secondary">
+            The task could not be loaded.
+          </Text>
+
+          <Pressable
+            className="mt-5 h-12 items-center justify-center rounded-2xl bg-accent"
+            onPress={() => router.back()}
+          >
+            <Text className="text-base font-bold text-text-inverse">
+              Go back
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    );
   }
 
+  const isOwner = session?.user.id === task.uId;
+
   return (
-    <View style={defaultStyles.container}>
+    <View className="flex-1 bg-app-bg px-5 pt-6">
       <Stack.Screen
         options={{
-          title: "Details",
-          headerTitleStyle: defaultStyles.title,
-          headerLeft: () => {
-            return (
-              <View style={defaultStyles.buttonContainer}>
-                <Button title="Back" onPress={router.back} />
-              </View>
-            )
-          },
-          headerRight: () => {
-            return (
-              <View style={defaultStyles.buttonContainer}>
-                <Button title="Logout" onPress={async () => await supabase.auth.signOut()} />
-              </View>
-            )
-          },
+          title: 'Task Details',
+          headerRight: () => (
+            <Pressable
+              className="rounded-full bg-app-subtle px-4 py-2"
+              onPress={async () => await supabase.auth.signOut()}
+            >
+              <Text className="text-sm font-semibold text-text-secondary">
+                Logout
+              </Text>
+            </Pressable>
+          ),
         }}
       />
 
-      {!task && (
-        <View style={defaultStyles.container}>
-          <Text style={defaultStyles.title}>Task not found</Text>
-        </View>
-      )}
-      
-      {task && (
-        <View style={defaultStyles.container}>
-          <Text style={defaultStyles.title}>{task.title}</Text>
-          <Text style={defaultStyles.body}>{task.description}</Text>
-          <View style={defaultStyles.checkbox}>
-              {task.isCompleted && <Text style={defaultStyles.checkboxMark}>✓</Text>}
+      <View className="rounded-3xl border border-app-border bg-app-surface p-5">
+        <View className="flex-row items-start">
+          <View
+            className={`mr-3 mt-1 h-6 w-6 items-center justify-center rounded-md border-2 ${
+              task.isCompleted
+                ? 'border-accent bg-accent'
+                : 'border-app-border bg-app-subtle'
+            }`}
+          >
+            {task.isCompleted && (
+              <Text className="text-sm font-bold text-text-inverse">✓</Text>
+            )}
           </View>
-          <Text style={defaultStyles.body}>{task.lastChanged}</Text>
 
-          <View style={defaultStyles.buttonContainer}>
-            <Button title="Edit" onPress={() => router.push({pathname: "/task/editTask", params: { tId: task.tId }})} />
-            <Button title="Delete" onPress={() => DeleteTask(task.tId)} />
+          <View className="flex-1">
+            <Text
+              className={`text-2xl font-bold ${
+                task.isCompleted ? 'text-text-secondary' : 'text-text-main'
+              }`}
+            >
+              {task.title}
+            </Text>
+
+            {task.description ? (
+              <Text className="mt-3 text-base leading-6 text-text-secondary">
+                {task.description}
+              </Text>
+            ) : (
+              <Text className="mt-3 text-base text-text-muted">
+                No description added.
+              </Text>
+            )}
+
+            <View className="mt-4 flex-row flex-wrap">
+              <View className="mr-2 mb-2 rounded-full bg-app-subtle px-3 py-1">
+                <Text className="text-xs font-semibold text-text-secondary">
+                  {task.isCompleted ? 'Completed' : 'In progress'}
+                </Text>
+              </View>
+            </View>
+
+            <Text className="mt-2 text-sm text-text-muted">
+              Last changed: {task.lastChanged}
+            </Text>
           </View>
         </View>
-      )}
+
+        {isOwner && (
+          <View className="mt-5 flex-row border-t border-app-border pt-5">
+            <Pressable
+              className="mr-3 flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-subtle py-3"
+              onPress={() =>
+                router.push({
+                  pathname: '/task/editTask',
+                  params: { tId: task.tId },
+                })
+              }
+            >
+              <Text className="text-sm font-bold text-text-secondary">
+                Edit
+              </Text>
+            </Pressable>
+
+            <Pressable
+              className="flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-surface py-3"
+              onPress={() => DeleteTask(task.tId)}
+            >
+              <Text className="text-sm font-bold text-status-danger">
+                Delete
+              </Text>
+            </Pressable>
+          </View>
+        )}
+      </View>
     </View>
   );
 }
