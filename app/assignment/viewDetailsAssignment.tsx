@@ -132,13 +132,15 @@ export default function ViewDetailsAssignment() {
       ]
     )
   }
+  
+  const completedTasks = tasks.filter((task) => task.isCompleted).length;
+  const totalTasks = tasks.length;
+  const remainingTasks = totalTasks - completedTasks;
 
   const progress =
-    tasks.length === 0
+    totalTasks === 0
       ? 0
-      : Math.round(
-          (tasks.filter((task) => task.isCompleted).length / tasks.length) * 100
-        );
+      : Math.round((completedTasks / totalTasks) * 100);
 
   if (!assignment) {
     return (
@@ -234,23 +236,33 @@ export default function ViewDetailsAssignment() {
                     </View>
                   </View>
 
-                  <View className="mt-2">
-                    <View className="mb-2 flex-row items-center justify-between">
-                      <Text className="text-sm font-semibold text-text-secondary">
-                        Progress
-                      </Text>
-                      <Text className="text-sm font-bold text-text-main">
-                        {progress}%
-                      </Text>
-                    </View>
+                 <View className="mt-5">
+                  <View className="mb-2 flex-row items-center justify-between">
+                    <Text className="text-sm font-semibold text-text-secondary">
+                      Task Progress
+                    </Text>
 
-                    <View className="h-3 overflow-hidden rounded-full bg-app-subtle">
-                      <View
-                        className="h-full rounded-full bg-accent"
-                        style={{ width: `${progress}%` }}
-                      />
-                    </View>
+                    <Text className="text-sm font-bold text-text-main">
+                      {completedTasks}/{totalTasks}
+                    </Text>
                   </View>
+
+                  <View className="h-3 overflow-hidden rounded-full bg-app-subtle">
+                    <View
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${progress}%`,
+                        backgroundColor: progress === 100 ? '#34D399' : '#3B82F6',
+                      }}
+                    />
+                  </View>
+
+                  <Text className="mt-2 text-xs font-medium text-text-secondary">
+                    {remainingTasks === 0
+                      ? 'All tasks complete'
+                      : `${remainingTasks} task${remainingTasks === 1 ? '' : 's'} remaining`}
+                  </Text>
+                </View>
 
                   <Text className="mt-4 text-sm text-text-muted">
                     Last changed: {assignment.lastChanged}

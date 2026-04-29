@@ -188,14 +188,14 @@ export default function ViewDetailsSubject() {
     );
   };
 
+  const completedAssignments = assignments.filter((assignment) => assignment.isCompleted).length;
+  const totalAssignments = assignments.length;
+  const remainingAssignments = totalAssignments - completedAssignments;
+
   const progress =
     assignments.length === 0
       ? 0
-      : Math.round(
-          (assignments.filter((assignment) => assignment.isCompleted).length /
-            assignments.length) *
-            100
-        );
+      : Math.round((completedAssignments / totalAssignments) * 100);
 
   if (!subject) {
     return (
@@ -319,8 +319,9 @@ export default function ViewDetailsSubject() {
                   <Text className="text-sm font-semibold text-text-secondary">
                     Assignment Progress
                   </Text>
+
                   <Text className="text-sm font-bold text-text-main">
-                    {progress}%
+                    {completedAssignments}/{totalAssignments}
                   </Text>
                 </View>
 
@@ -333,6 +334,14 @@ export default function ViewDetailsSubject() {
                     }}
                   />
                 </View>
+
+                <Text className="mt-2 text-xs font-medium text-text-secondary">
+                  {remainingAssignments === 0
+                    ? 'All assignments complete'
+                    : `${remainingAssignments} assignment${
+                        remainingAssignments === 1 ? '' : 's'
+                      } remaining`}
+                </Text>
               </View>
 
               <Text className="mt-4 text-sm text-text-muted">
