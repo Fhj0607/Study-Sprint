@@ -51,3 +51,8 @@ export const SUBJECT_COLORS: Record<
 export const SUBJECT_COLOR_KEYS = Object.keys(
   SUBJECT_COLORS
 ) as SubjectColor[];
+
+export const getSubjectColorSet = (color?: SubjectColor) => {
+  const colorKey: SubjectColor = color ?? 'slate';
+  return SUBJECT_COLORS[colorKey];
+};

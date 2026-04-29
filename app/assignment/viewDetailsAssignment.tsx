@@ -1,4 +1,5 @@
 import { CheckAssignmentCompletion, CheckSubjectCompletion } from '@/lib/progress';
+import { getSubjectColorSet, type SubjectColor } from '@/lib/subjectColors';
 import { supabase } from '@/lib/supabase';
 import type { Assignment, Task } from '@/lib/types';
 import { Session } from '@supabase/supabase-js';
@@ -6,11 +7,14 @@ import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, SectionList, Text, View } from "react-native";
 
+
 export default function ViewDetailsAssignment() {
   const { aId } = useLocalSearchParams<{ aId: string }>();
-  const [assignment, SetAssignment] = useState<Assignment | null>(null)
-  const [tasks, SetTasks] = useState<Task[]>([])
-  const [session, SetSession] = useState<Session | null>(null)
+  const [assignment, SetAssignment] = useState<Assignment | null>(null);
+  const [tasks, SetTasks] = useState<Task[]>([]);
+  const [session, SetSession] = useState<Session | null>(null);
+  const [subjectColor, setSubjectColor] = useState<SubjectColor>('slate');
+  const [subjectTitle, setSubjectTitle] = useState('No Subject');
 
   const taskSections = [
     { title: "Upcoming Tasks", data: tasks.filter((task) => !task.isCompleted), emptyMessage: "No upcoming tasks" },
@@ -26,16 +30,39 @@ export default function ViewDetailsAssignment() {
     },
   [])
 
-  const GetAssignment = async (aId: string) => { 
-    const { data, error } = await supabase.from("assignments").select("*").eq("aId", aId).single();
+  const GetAssignment = async (assignmentId: string) => {
+  const { data, error } = await supabase
+    .from('assignments')
+    .select('*')
+    .eq('aId', assignmentId)
+    .single();
 
-    if (error) {
-      Alert.alert("Assignment could not be fetched, please try again");
+    if (error || !data) {
+      console.log('GetAssignment error:', error);
+      Alert.alert('Assignment could not be fetched, please try again');
       return;
     }
 
-    SetAssignment(data ?? null);
-  }
+    SetAssignment(data);
+
+    if (data.sId) {
+      const { data: subjectData, error: subjectError } = await supabase
+        .from('subjects')
+        .select('title, color')
+        .eq('sId', data.sId)
+        .single();
+
+      if (subjectError || !subjectData) {
+        console.log('GetSubjectMeta error:', subjectError);
+        setSubjectTitle('Unknown Subject');
+        setSubjectColor('slate');
+        return;
+      }
+
+      setSubjectTitle(subjectData.title ?? 'Unknown Subject');
+      setSubjectColor((subjectData.color as SubjectColor | undefined) ?? 'slate');
+    }
+  };
 
   const GetTasks = async (aId: string) => { 
     const { data, error } = await supabase.from("tasks").select("*").eq("aId", aId);
@@ -132,7 +159,9 @@ export default function ViewDetailsAssignment() {
       ]
     )
   }
-  
+
+  const colorSet = getSubjectColorSet(subjectColor);
+
   const completedTasks = tasks.filter((task) => task.isCompleted).length;
   const totalTasks = tasks.length;
   const remainingTasks = totalTasks - completedTasks;
@@ -151,7 +180,13 @@ export default function ViewDetailsAssignment() {
           }}
         />
 
-        <View className="rounded-3xl border border-app-border bg-app-surface p-5">
+        <View
+          className="rounded-3xl bg-app-surface p-5"
+          style={{
+            borderWidth: 1,
+            borderColor: colorSet.strong,
+          }}
+        >
           <Text className="text-2xl font-bold text-text-main">
             Assignment not found
           </Text>
@@ -169,6 +204,7 @@ export default function ViewDetailsAssignment() {
       </View>
     );
   }
+
 
   return (
     <View className="flex-1 bg-app-bg">
@@ -197,14 +233,20 @@ export default function ViewDetailsAssignment() {
         stickySectionHeadersEnabled={false}
         ListHeaderComponent={
           <View>
-            <View className="rounded-3xl border border-app-border bg-app-surface p-5">
+            <View
+              className="rounded-3xl bg-app-surface p-5"
+              style={{
+                borderWidth: 1,
+                borderColor: colorSet.strong,
+              }}
+            >
               <View className="flex-row items-start">
                 <View
-                  className={`mr-3 mt-1 h-6 w-6 items-center justify-center rounded-md border-2 ${
-                    assignment.isCompleted
-                      ? 'border-accent bg-accent'
-                      : 'border-app-border bg-app-subtle'
-                  }`}
+                  className="mr-3 mt-1 h-6 w-6 items-center justify-center rounded-md border-2"
+                  style={{
+                    borderColor: assignment.isCompleted ? colorSet.strong : '#DDD6C8',
+                    backgroundColor: assignment.isCompleted ? colorSet.strong : '#EFEBE3',
+                  }}
                 >
                   {assignment.isCompleted && (
                     <Text className="text-sm font-bold text-text-inverse">✓</Text>
@@ -223,14 +265,34 @@ export default function ViewDetailsAssignment() {
                   ) : null}
 
                   <View className="mt-4 flex-row flex-wrap">
+
+                    <View
+                      className="mr-2 mb-2 rounded-full px-3 py-1"
+                      style={{ backgroundColor: colorSet.soft }}
+                    >
+                      <Text
+                        className="text-xs font-semibold"
+                        style={{ color: colorSet.strong }}
+                      >
+                        {subjectTitle}
+                      </Text>
+                    </View>
+
+
                     <View className="mr-2 mb-2 rounded-full bg-app-subtle px-3 py-1">
                       <Text className="text-xs font-semibold text-text-secondary">
                         Deadline: {assignment.deadline || 'No deadline'}
                       </Text>
                     </View>
 
-                    <View className="mr-2 mb-2 rounded-full bg-app-subtle px-3 py-1">
-                      <Text className="text-xs font-semibold text-text-secondary">
+                    <View
+                      className="mr-2 mb-2 rounded-full px-3 py-1"
+                      style={{ backgroundColor: colorSet.soft }}
+                    >
+                      <Text
+                        className="text-xs font-semibold"
+                        style={{ color: colorSet.strong }}
+                      >
                         {assignment.isCompleted ? 'Completed' : 'In progress'}
                       </Text>
                     </View>
@@ -252,7 +314,7 @@ export default function ViewDetailsAssignment() {
                       className="h-full rounded-full"
                       style={{
                         width: `${progress}%`,
-                        backgroundColor: progress === 100 ? '#34D399' : '#3B82F6',
+                        backgroundColor: colorSet.strong,
                       }}
                     />
                   </View>
@@ -324,7 +386,13 @@ export default function ViewDetailsAssignment() {
           const isOwner = session?.user.id === item.uId;
 
           return (
-            <View className="mb-4 rounded-3xl border border-app-border bg-app-surface p-4">
+            <View
+              className="mb-4 rounded-3xl bg-app-surface p-4"
+              style={{
+                borderWidth: 1,
+                borderColor: colorSet.soft,
+              }}
+            >
               <Pressable
                 onPress={() =>
                   router.push({
@@ -335,11 +403,11 @@ export default function ViewDetailsAssignment() {
               >
                 <View className="flex-row items-start">
                   <View
-                    className={`mr-3 mt-1 h-6 w-6 items-center justify-center rounded-md border-2 ${
-                      item.isCompleted
-                        ? 'border-accent bg-accent'
-                        : 'border-app-border bg-app-subtle'
-                    }`}
+                    className="mr-3 mt-1 h-6 w-6 items-center justify-center rounded-md border-2"
+                    style={{
+                      borderColor: item.isCompleted ? colorSet.strong : '#DDD6C8',
+                      backgroundColor: item.isCompleted ? colorSet.strong : '#EFEBE3',
+                    }}
                   >
                     {item.isCompleted && (
                       <Text className="text-sm font-bold text-text-inverse">✓</Text>
