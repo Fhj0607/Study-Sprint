@@ -1,3 +1,4 @@
+import { formatDate, formatDateTime } from '@/lib/date';
 import { CheckSubjectCompletion } from '@/lib/progress';
 import { SUBJECT_COLORS, type SubjectColor } from '@/lib/subjectColors';
 import { supabase } from '@/lib/supabase';
@@ -15,37 +16,6 @@ export type Subject = {
   lastChanged: string;
   uId: string;
   color: SubjectColor;
-};
-
-
-const formatDate = (value?: string | null) => {
-  if (!value) return 'No date';
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) return value;
-
-  return date.toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-};
-
-const formatDateTime = (value?: string | null) => {
-  if (!value) return 'Unknown';
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) return value;
-
-  return date.toLocaleString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
 };
 
 export default function ViewDetailsSubject() {

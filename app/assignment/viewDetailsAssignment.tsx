@@ -1,3 +1,4 @@
+import { formatDateTime } from '@/lib/date';
 import { CheckAssignmentCompletion, CheckSubjectCompletion } from '@/lib/progress';
 import { getSubjectColorSet, type SubjectColor } from '@/lib/subjectColors';
 import { supabase } from '@/lib/supabase';
@@ -287,19 +288,7 @@ export default function ViewDetailsAssignment() {
 
                     <View className="mr-2 mb-2 rounded-full bg-app-subtle px-3 py-1">
                       <Text className="text-xs font-semibold text-text-secondary">
-                        Deadline: {assignment.deadline || 'No deadline'}
-                      </Text>
-                    </View>
-
-                    <View
-                      className="mr-2 mb-2 rounded-full px-3 py-1"
-                      style={{ backgroundColor: colorSet.soft }}
-                    >
-                      <Text
-                        className="text-xs font-semibold"
-                        style={{ color: colorSet.strong }}
-                      >
-                        {assignment.isCompleted ? 'Completed' : 'In progress'}
+                        Deadline: {formatDateTime(assignment.deadline) || 'No deadline'}
                       </Text>
                     </View>
                   </View>
@@ -332,9 +321,9 @@ export default function ViewDetailsAssignment() {
                   </Text>
                 </View>
 
-                  <Text className="mt-4 text-sm text-text-muted">
-                    Last changed: {assignment.lastChanged}
-                  </Text>
+                <Text className="mt-4 text-sm text-text-muted">
+                  Last changed: {formatDateTime(assignment.lastChanged)}
+                </Text>
                 </View>
               </View>
 
