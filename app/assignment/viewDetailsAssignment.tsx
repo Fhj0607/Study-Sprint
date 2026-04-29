@@ -13,8 +13,10 @@ export default function ViewDetailsAssignment() {
   const [assignment, SetAssignment] = useState<Assignment | null>(null);
   const [tasks, SetTasks] = useState<Task[]>([]);
   const [session, SetSession] = useState<Session | null>(null);
-  const [subjectColor, setSubjectColor] = useState<SubjectColor>('slate');
-  const [subjectTitle, setSubjectTitle] = useState('No Subject');
+  const [subjectMeta, setSubjectMeta] = useState({
+    title: 'No Subject',
+    color: 'slate' as SubjectColor,
+  });
 
   const taskSections = [
     { title: "Upcoming Tasks", data: tasks.filter((task) => !task.isCompleted), emptyMessage: "No upcoming tasks" },
@@ -54,13 +56,17 @@ export default function ViewDetailsAssignment() {
 
       if (subjectError || !subjectData) {
         console.log('GetSubjectMeta error:', subjectError);
-        setSubjectTitle('Unknown Subject');
-        setSubjectColor('slate');
+        setSubjectMeta({
+          title: 'Unknown Subject',
+          color: 'slate'
+        });
         return;
       }
 
-      setSubjectTitle(subjectData.title ?? 'Unknown Subject');
-      setSubjectColor((subjectData.color as SubjectColor | undefined) ?? 'slate');
+      setSubjectMeta({
+        title: subjectData.title ?? 'Unknown Subject',
+        color: (subjectData.color as SubjectColor | undefined) ?? 'slate'
+      });
     }
   };
 
@@ -160,7 +166,7 @@ export default function ViewDetailsAssignment() {
     )
   }
 
-  const colorSet = getSubjectColorSet(subjectColor);
+  const colorSet = getSubjectColorSet(subjectMeta.color);
 
   const completedTasks = tasks.filter((task) => task.isCompleted).length;
   const totalTasks = tasks.length;
@@ -274,7 +280,7 @@ export default function ViewDetailsAssignment() {
                         className="text-xs font-semibold"
                         style={{ color: colorSet.strong }}
                       >
-                        {subjectTitle}
+                        {subjectMeta.title}
                       </Text>
                     </View>
 
