@@ -1,40 +1,21 @@
-import { defaultStyles } from '@/constants/defaultStyles';
+import { SUBJECT_COLORS } from '@/lib/subjectColors';
 import { supabase } from '@/lib/supabase';
-import type { Assignment, Subject } from '@/lib/types';
-import { Ionicons } from '@expo/vector-icons';
+import { Subject } from '@/lib/types';
 import { Session } from '@supabase/supabase-js';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import {
-  Alert,
-  Pressable,
-  SectionList,
-  Text,
-  View,
-} from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+
+import type { SubjectColor } from '@/lib/subjectColors';
 
 export default function Subjects() {
   const [subjects, SetSubjects] = useState<Subject[]>([]);
-  const [assignmentsBySubject, SetAssignmentsBySubject] = useState<Record<string, Assignment[]>>({});
   const [session, SetSession] = useState<Session | null>(null);
 
-  const subjectSections = [
-    {
-      title: 'Active Subjects',
-      data: subjects.filter((subject) => subject.isActive),
-      emptyMessage: 'No active subjects',
-    },
-    {
-      title: 'Inactive Subjects',
-      data: subjects.filter((subject) => !subject.isActive),
-      emptyMessage: 'No inactive subjects',
-    },
-  ];
-
   useEffect(() => {
-    supabase.auth
-      .getSession()
-      .then(({ data }) => SetSession(data.session ?? null));
+    supabase.auth.getSession().then(({ data }) => {
+      SetSession(data.session ?? null);
+    });
 
     const { data: sub } = supabase.auth.onAuthStateChange(
       (_event, newSession) => {
@@ -46,47 +27,20 @@ export default function Subjects() {
   }, []);
 
   const GetSubjects = async () => {
-    const { data: subjectsData, error: subjectsError } = await supabase
+    if (!session?.user.id) return;
+
+    const { data, error } = await supabase
       .from('subjects')
       .select('*')
+      .eq('uId', session.user.id)
       .order('lastChanged', { ascending: false });
 
-    if (subjectsError) {
+    if (error) {
       Alert.alert('Subjects could not be fetched, please try again');
       return;
     }
 
-    const subjectRows = subjectsData ?? [];
-    SetSubjects(subjectsData ?? []);
-
-    if (subjectRows.length === 0) {
-      SetAssignmentsBySubject({});
-      return;
-    }
-    
-    const sIds = subjectRows.map((subject) => subject.sId);
-    
-    const { data: assignmentsData, error: assignmentsError } = await supabase
-      .from('assignments')
-      .select('*')
-      .in('sId', sIds);
-    
-    if (assignmentsError) {
-      Alert.alert('Subject assignments could not be fetched, please try again');
-      SetAssignmentsBySubject({});
-      return;
-    }
-    
-    const groupedAssignments: Record<string, Assignment[]> = {};
-    
-    for (const assignment of assignmentsData ?? []) {
-      if (!groupedAssignments[assignment.sId]) {
-        groupedAssignments[assignment.sId] = [];
-      }
-      groupedAssignments[assignment.sId].push(assignment);
-    }
-    
-    SetAssignmentsBySubject(groupedAssignments);
+    SetSubjects((data as Subject[]) ?? []);
   };
 
   useFocusEffect(
@@ -97,232 +51,131 @@ export default function Subjects() {
     }, [session])
   );
 
-  const DeleteSubject = async (sId: string) => {
-    Alert.alert(
-      'Delete Subject',
-      'Are you sure you want to delete this subject?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            const { error } = await supabase
-              .from('subjects')
-              .delete()
-              .eq('sId', sId);
-
-            if (error) {
-              Alert.alert('Subject could not be deleted, please try again');
-              return;
-            }
-
-            Alert.alert('Subject deleted successfully!');
-            GetSubjects();
-          },
-        },
-      ]
-    );
-  };
-
   return (
     <View className="flex-1 bg-app-bg">
       <Stack.Screen
         options={{
           title: 'Subjects',
-          headerTitleStyle: defaultStyles.title,
           headerRight: () => (
-            <View className="flex-row items-center">
-              <Pressable
-                className="mr-3 h-10 w-10 items-center justify-center rounded-full border border-app-border bg-app-surface"
-                onPress={GetSubjects}
-              >
-                <Ionicons name="refresh" size={20} color="#333" />
-              </Pressable>
-
-              <Pressable
-                className="rounded-full bg-app-subtle px-4 py-2"
-                onPress={async () => await supabase.auth.signOut()}
-              >
-                <Text className="text-sm font-semibold text-text-secondary">
-                  Logout
-                </Text>
-              </Pressable>
-            </View>
+            <Pressable
+              className="rounded-full bg-app-subtle px-4 py-2"
+              onPress={async () => await supabase.auth.signOut()}
+            >
+              <Text className="text-sm font-semibold text-text-secondary">
+                Logout
+              </Text>
+            </Pressable>
           ),
         }}
       />
 
-      <View className="flex-1 px-5 pt-5">
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{
+          paddingHorizontal: 20,
+          paddingTop: 20,
+          paddingBottom: 32,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
         <View className="mb-6">
-          <Text className="text-3xl font-bold text-text-main">
-            Subjects
-          </Text>
+          <Text className="text-3xl font-bold text-text-main">Subjects</Text>
           <Text className="mt-2 text-base leading-6 text-text-secondary">
-            Organize your study work by subject, then break it into assignments
-            and tasks.
+            Pick a subject to manage assignments and tasks.
           </Text>
         </View>
 
+        {subjects.length === 0 ? (
+          <View className="rounded-3xl border border-app-border bg-app-surface p-5">
+            <Text className="text-center text-base font-semibold text-text-secondary">
+              No subjects yet
+            </Text>
+            <Text className="mt-1 text-center text-sm text-text-muted">
+              Create your first subject to get started.
+            </Text>
+          </View>
+        ) : (
+          <View>
+            {subjects.map((subject) => {
+                const colorKey: SubjectColor = subject.color ?? 'slate';
+                const colorSet = SUBJECT_COLORS[colorKey];
+
+              const firstLetter =
+                subject.title?.trim().charAt(0).toUpperCase() || '?';
+
+              return (
+                <Pressable
+                  key={subject.sId}
+                  className="mb-4 rounded-3xl bg-app-surface p-4"
+                  style={{
+                    borderWidth: 1,
+                    borderColor: colorSet.strong,
+                  }}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/subject/viewDetailsSubject',
+                      params: { sId: subject.sId },
+                    })
+                  }
+                >
+                  <View className="flex-row items-center">
+                    <View
+                      className="mr-3 h-12 w-12 items-center justify-center rounded-2xl"
+                      style={{ backgroundColor: colorSet.soft }}
+                    >
+                      <Text
+                        className="text-base font-bold"
+                        style={{ color: colorSet.strong }}
+                      >
+                        {firstLetter}
+                      </Text>
+                    </View>
+
+                    <View className="flex-1">
+                      <Text
+                        className="text-base font-bold text-text-main"
+                        numberOfLines={1}
+                      >
+                        {subject.title}
+                      </Text>
+
+                      <Text
+                        className="mt-1 text-sm leading-5 text-text-secondary"
+                        numberOfLines={2}
+                      >
+                        {subject.description || 'No description added.'}
+                      </Text>
+                    </View>
+
+                    <View className="ml-3">
+                      <View
+                        className="rounded-full px-3 py-1"
+                        style={{ backgroundColor: colorSet.soft }}
+                      >
+                        <Text
+                          className="text-xs font-semibold"
+                          style={{ color: colorSet.strong }}
+                        >
+                          {subject.isActive ? 'Active' : 'Inactive'}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
+
         <Pressable
-          className="mb-6 h-14 items-center justify-center rounded-2xl bg-accent"
-          onPress={() => router.push('/subject/createSubject')}
+          className="mt-2 h-14 items-center justify-center rounded-2xl bg-accent"
+          onPress={() => router.push('/subject/upsertSubject')}
         >
           <Text className="text-base font-bold text-text-inverse">
             Create Subject
           </Text>
         </Pressable>
-
-        <SectionList
-          sections={subjectSections}
-          keyExtractor={(item) => item.sId}
-          showsVerticalScrollIndicator={false}
-          stickySectionHeadersEnabled={false}
-          contentContainerStyle={{
-            paddingBottom: 32,
-          }}
-          renderSectionHeader={({ section: { title, data } }) => (
-            <View className="mb-3 mt-2 flex-row items-center justify-between">
-              <Text className="text-lg font-bold text-text-main">
-                {title}
-              </Text>
-
-              <View className="rounded-full bg-app-subtle px-3 py-1">
-                <Text className="text-xs font-semibold text-text-muted">
-                  {data.length}
-                </Text>
-              </View>
-            </View>
-          )}
-          renderItem={({ item }) => {
-            const isOwner = session?.user.id === item.uId;
-
-            const subjectAssignments = assignmentsBySubject[item.sId] ?? [];
-            const progress = subjectAssignments.length === 0 ? 0 : Math.round((subjectAssignments.filter(assignment => assignment.isCompleted).length / subjectAssignments.length) * 100);
-
-            return (
-              <View className="mb-4 rounded-3xl border border-app-border bg-app-surface p-4 shadow-sm">
-                <Pressable
-                  onPress={() =>
-                    router.push({
-                      pathname: '/subject/viewDetailsSubject',
-                      params: { sId: item.sId },
-                    })
-                  }
-                >
-                  <View className="flex-row items-start">
-                    <View
-                      className={`mr-3 mt-1 h-6 w-6 items-center justify-center rounded-md border-2 ${
-                        item.isActive
-                          ? 'border-accent bg-accent'
-                          : 'border-app-border bg-app-subtle'
-                      }`}
-                    >
-                      {item.isActive && (
-                        <Text className="text-sm font-bold text-text-inverse">
-                          ✓
-                        </Text>
-                      )}
-                    </View>
-
-                    <View className="flex-1">
-                      <Text
-                        className={`text-base font-bold ${
-                          item.isActive
-                            ? 'text-text-main'
-                            : 'text-text-secondary'
-                        }`}
-                      >
-                        {item.title}
-                      </Text>
-
-                      {item.description ? (
-                        <Text
-                          className="mt-1 text-sm leading-5 text-text-muted"
-                          numberOfLines={2}
-                        >
-                          {item.description}
-                        </Text>
-                      ) : null}
-
-                      <View className="mt-3 self-start rounded-full bg-app-subtle px-3 py-1">
-                        <Text className="text-xs font-semibold text-text-secondary">
-                          {item.isActive ? 'Active' : 'Inactive'}
-                        </Text>
-                      </View>
-                      <View style={{ marginTop: 10 }}>
-                        <Text style={{ marginBottom: 4 }}>{progress}%</Text>
-                        
-                        <View
-                          style={{
-                            width: "100%",
-                            height: 12,
-                            backgroundColor: "#D9D9D9",
-                            borderRadius: 999,
-                            overflow: "hidden",
-                          }}
-                        >
-                          <View
-                            style={{
-                              width: `${progress}%`,
-                              height: "100%",
-                              backgroundColor: "#4CAF50",
-                            }}
-                          />
-                        </View>
-                      </View>
-                    </View>
-                  </View>
-                </Pressable>
-
-                {isOwner && (
-                  <View className="mt-4 flex-row border-t border-app-border pt-4">
-                    <Pressable
-                      className="mr-3 flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-subtle py-3"
-                      onPress={() =>
-                        router.push({
-                          pathname: '/subject/editSubject',
-                          params: { sId: item.sId },
-                        })
-                      }
-                    >
-                      <Text className="text-sm font-bold text-text-secondary">
-                        Edit
-                      </Text>
-                    </Pressable>
-
-                    <Pressable
-                      className="flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-surface py-3"
-                      onPress={() => DeleteSubject(item.sId)}
-                    >
-                      <Text className="text-sm font-bold text-status-danger">
-                        Delete
-                      </Text>
-                    </Pressable>
-                  </View>
-                )}
-              </View>
-            );
-          }}
-          renderSectionFooter={({ section }) =>
-            section.data.length === 0 ? (
-              <View className="mb-6 rounded-3xl border border-app-border bg-app-surface p-5">
-                <Text className="text-center text-base font-semibold text-text-secondary">
-                  {section.emptyMessage}
-                </Text>
-                <Text className="mt-1 text-center text-sm text-text-muted">
-                  Subjects you create will show up here.
-                </Text>
-              </View>
-            ) : (
-              <View className="mb-2" />
-            )
-          }
-        />
-      </View>
+      </ScrollView>
     </View>
   );
 }

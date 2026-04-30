@@ -1,69 +1,146 @@
-import { defaultStyles } from '@/constants/defaultStyles';
 import { supabase } from '@/lib/supabase';
-import { router, Stack } from 'expo-router';
+import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Button, Keyboard, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, TouchableWithoutFeedback, View } from 'react-native';
+import {
+  Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableWithoutFeedback,
+  View,
+} from 'react-native';
 
 export default function CreateUser() {
   const [email, SetEmail] = useState('');
   const [password, SetPassword] = useState('');
+  const [isLoading, SetIsLoading] = useState(false);
 
   const SignUp = async () => {
-    if(email.trim() === '' || password.trim() === '') {
-      Alert.alert("All fields are required!");
+    if (email.trim() === '' || password.trim() === '') {
+      Alert.alert('All fields are required!');
       return;
     }
 
-    const {error} = await supabase.auth.signUp({
-      email: email,
-      password: password,
+    SetIsLoading(true);
+
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
     });
 
+    SetIsLoading(false);
+
     if (error) {
-      Alert.alert(error.message, "User could not be created, please try again");
+      Alert.alert(error.message, 'User could not be created, please try again');
       return;
     }
 
-    router.replace("/");
-  }
+    if (!data.session) {
+      Alert.alert(
+        'Check your email',
+        'Your account was created. Please confirm your email before signing in.'
+      );
+      router.replace('/login');
+      return;
+    }
+    router.replace('/');
+  };
+
+  const inputClassName =
+    'rounded-2xl border border-app-border bg-app-subtle px-4 py-3 text-base text-text-main';
 
   return (
-    <View style={defaultStyles.container}>
-      <Stack.Screen
-        options={{
-          title: "Create User",
-          headerTitleStyle: defaultStyles.title,
-        }}
-      />
-      <View style={defaultStyles.container}>
-        <Text style={defaultStyles.title}>Create User</Text>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <View style={defaultStyles.container}>
+    <KeyboardAvoidingView
+      className="flex-1 bg-app-bg"
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <ScrollView
+          className="flex-1"
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{
+            flexGrow: 1,
+            justifyContent: 'center',
+            paddingHorizontal: 20,
+            paddingTop: 64,
+            paddingBottom: 32,
+          }}
+        >
+          <View className="mb-10">
+            <Text className="mt-5 text-4xl font-bold text-text-main">
+              Study Sprint
+            </Text>
+
+            <Text className="mt-3 text-base leading-6 text-text-secondary">
+              Organize subjects, assignments, and tasks in one calm workflow.
+            </Text>
+          </View>
+
+          <View className="rounded-3xl border border-app-border bg-app-surface p-5">
+            <Text className="text-2xl font-bold text-text-main">
+              Create account
+            </Text>
+            <Text className="mt-2 text-sm leading-5 text-text-secondary">
+              Start your next study sprint.
+            </Text>
+
+            <View className="mt-6 mb-5">
+              <Text className="mb-2 text-sm font-semibold text-text-secondary">
+                Email
+              </Text>
               <TextInput
-                style={defaultStyles.inputText}
-                placeholder="Enter Email"
-                value={email}
-                onChangeText={SetEmail}   
+                className={inputClassName}
+                placeholder="you@example.com"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="email-address"
                 autoCapitalize="none"
+                autoCorrect={false}
+                value={email}
+                onChangeText={SetEmail}
               />
+            </View>
+
+            <View className="mb-6">
+              <Text className="mb-2 text-sm font-semibold text-text-secondary">
+                Password
+              </Text>
               <TextInput
-                style={defaultStyles.inputText}
-                placeholder="Enter Password"
+                className={inputClassName}
+                placeholder="Create a password"
+                placeholderTextColor="#9CA3AF"
+                secureTextEntry
                 value={password}
                 onChangeText={SetPassword}
-                secureTextEntry
               />
-                
-              <Button title="Save" onPress={SignUp} />
-              <Button title="Cancel" onPress={() => router.back()} />
-              <Pressable onPress={() => router.push("/login")} style={defaultStyles.buttonContainer}>
-                <Text style={defaultStyles.linkText}>Already have an Account? login here</Text>
-              </Pressable>
             </View>
-          </TouchableWithoutFeedback>
-        </KeyboardAvoidingView>
-      </View>
-    </View>
-  )
+
+            <Pressable
+              className={`h-14 items-center justify-center rounded-2xl ${
+                isLoading ? 'bg-accent-disabled' : 'bg-accent'
+              }`}
+              onPress={SignUp}
+              disabled={isLoading}
+            >
+              <Text className="text-base font-bold text-text-inverse">
+                {isLoading ? 'Creating account...' : 'Create account'}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              className="mt-4 h-12 items-center justify-center rounded-2xl border border-app-border bg-app-subtle"
+              onPress={() => router.push('/login')}
+            >
+              <Text className="text-sm font-semibold text-text-secondary">
+                Already have an account? Log in
+              </Text>
+          </Pressable>
+          </View>
+        </ScrollView>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
+  );
 }

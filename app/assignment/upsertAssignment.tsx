@@ -4,7 +4,7 @@ import { CheckSubjectCompletion } from '@/lib/progress';
 import { supabase } from '@/lib/supabase';
 import * as Notifications from 'expo-notifications';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -19,28 +19,74 @@ import {
   View,
 } from 'react-native';
 
-export default function CreateAssignment() {
-  const sId = (useLocalSearchParams().sId as string) ?? null;
+export default function UpsertAssignment() {
+  const { aId, sId: routeSId } = useLocalSearchParams<{
+    aId?: string;
+    sId?: string;
+  }>();
+
+  const isEditMode = Boolean(aId);
+
   const [title, SetTitle] = useState('');
   const [description, SetDescription] = useState('');
   const [deadline, SetDeadline] = useState('');
   const [isCompleted, SetIsCompleted] = useState(false);
+  const [subjectId, SetSubjectId] = useState<string | null>(routeSId ?? null);
+
+  const [isLoading, SetIsLoading] = useState(isEditMode);
   const [isSaving, SetIsSaving] = useState(false);
 
-  const ScheduleDeadlineReminder = async (aId: string, title: string, deadline: string) => {
-    const dl = new Date(deadline);
+  useEffect(() => {
+    if (!isEditMode || !aId) {
+      SetIsLoading(false);
+      return;
+    }
 
-    if (isNaN(dl.getTime())) return null;
+    const loadAssignment = async () => {
+      SetIsLoading(true);
+
+      const { data, error } = await supabase
+        .from('assignments')
+        .select('*')
+        .eq('aId', aId)
+        .single();
+
+      SetIsLoading(false);
+
+      if (error || !data) {
+        Alert.alert('Assignment could not be loaded, please try again');
+        router.back();
+        return;
+      }
+
+      SetTitle(data.title ?? '');
+      SetDescription(data.description ?? '');
+      SetDeadline(data.deadline ?? '');
+      SetIsCompleted(data.isCompleted ?? false);
+      SetSubjectId(data.sId ?? routeSId ?? null);
+    };
+
+    loadAssignment();
+  }, [aId, isEditMode, routeSId]);
+
+  const ScheduleDeadlineReminder = async (
+    assignmentId: string,
+    assignmentTitle: string,
+    assignmentDeadline: string
+  ) => {
+    const dl = new Date(assignmentDeadline);
+
+    if (Number.isNaN(dl.getTime())) return null;
 
     const deadlineReminder = new Date(dl.getTime() - 24 * 60 * 60 * 1000);
 
-      if (deadlineReminder <= new Date()) return null;
+    if (deadlineReminder <= new Date()) return null;
 
     const nId = await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Assignment deadline coming up',
-        body: `${title} is due in 24 hours.`,
-        data: { aId },
+        body: `${assignmentTitle} is due in 24 hours.`,
+        data: { aId: assignmentId },
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
@@ -49,9 +95,40 @@ export default function CreateAssignment() {
     });
 
     return nId;
-  }
+  };
 
-  const CreateAssignment = async () => {
+  const updateDeadlineReminder = async (
+    assignmentId: string,
+    assignmentTitle: string,
+    assignmentDeadline: string,
+    completed: boolean
+  ) => {
+    const existingNotificationId =
+      await AsyncStorage.GetAssignmentNotificationId(assignmentId);
+
+    if (existingNotificationId) {
+      try {
+        await Notifications.cancelScheduledNotificationAsync(
+          existingNotificationId
+        );
+      } catch {}
+      await AsyncStorage.RemoveAssignmentNotificationId(assignmentId);
+    }
+
+    if (completed) return;
+
+    const nId = await ScheduleDeadlineReminder(
+      assignmentId,
+      assignmentTitle,
+      assignmentDeadline
+    );
+
+    if (nId) {
+      await AsyncStorage.SaveAssignmentNotificationId(assignmentId, nId);
+    }
+  };
+
+  const handleSubmit = async () => {
     if (title.trim() === '') {
       Alert.alert('Title is required!');
       return;
@@ -60,53 +137,69 @@ export default function CreateAssignment() {
     const { data: userData, error: userError } = await supabase.auth.getUser();
 
     if (userError || !userData.user) {
-      router.replace('../createUser');
+      router.replace('/login');
+      return;
+    }
+
+    if (!subjectId) {
+      Alert.alert('Missing subject', 'This assignment is not linked to a subject.');
       return;
     }
 
     SetIsSaving(true);
 
-    const { data: assignmentData, error: dbError } = await supabase.from('assignments').insert({
+    const payload = {
       title: title.trim(),
       description: description.trim(),
       deadline: deadline.trim(),
       isCompleted,
       lastChanged: new Date().toISOString(),
       uId: userData.user.id,
-      sId,
-    })
-    .select()
-    .single();
+      sId: subjectId,
+    };
 
-    if (dbError) {
+    const result =
+      isEditMode && aId
+        ? await supabase
+            .from('assignments')
+            .update(payload)
+            .eq('aId', aId)
+            .select()
+            .single()
+        : await supabase.from('assignments').insert(payload).select().single();
+
+    if (result.error || !result.data) {
       SetIsSaving(false);
-      Alert.alert('Assignment could not be created, please try again');
+      Alert.alert(
+        isEditMode
+          ? 'Assignment could not be updated, please try again'
+          : 'Assignment could not be created, please try again'
+      );
       return;
     }
 
-    Alert.alert('Assignment successfully created!');
+    const savedAssignment = result.data;
 
-    if (!isCompleted && assignmentData) {
-      const nId = await ScheduleDeadlineReminder(assignmentData.aId, assignmentData.title, assignmentData.deadline);
+    await updateDeadlineReminder(
+      savedAssignment.aId,
+      savedAssignment.title,
+      savedAssignment.deadline,
+      savedAssignment.isCompleted
+    );
 
-      if (nId) {
-        await AsyncStorage.SaveAssignmentNotificationId(assignmentData.aId, nId);
-      }
+    try {
+      await CheckSubjectCompletion(subjectId);
+    } catch {
+      Alert.alert('Failed to update subject status');
     }
 
-    if (sId) {
-      try {
-        await CheckSubjectCompletion(sId);
-      } catch {
-        Alert.alert("Failed to update subject status");
-      }
-    }
-
-    SetTitle('');
-    SetDescription('');
-    SetDeadline('');
-    SetIsCompleted(false);
     SetIsSaving(false);
+
+    Alert.alert(
+      isEditMode
+        ? 'Assignment successfully updated!'
+        : 'Assignment successfully created!'
+    );
 
     router.back();
   };
@@ -116,11 +209,19 @@ export default function CreateAssignment() {
 
   const labelClassName = 'mb-2 text-sm font-semibold text-text-secondary';
 
+  if (isLoading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-app-bg">
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
   return (
     <>
       <Stack.Screen
         options={{
-          title: 'Create Assignment',
+          title: isEditMode ? 'Edit Assignment' : 'Create Assignment',
           headerTitleStyle: defaultStyles.title,
         }}
       />
@@ -142,10 +243,12 @@ export default function CreateAssignment() {
           >
             <View className="mb-6">
               <Text className="text-3xl font-bold text-text-main">
-                Create Assignment
+                {isEditMode ? 'Edit Assignment' : 'Create Assignment'}
               </Text>
               <Text className="mt-2 text-base leading-6 text-text-secondary">
-                Add a new assignment to keep your subject organized.
+                {isEditMode
+                  ? 'Update this assignment and keep your subject organized.'
+                  : 'Add a new assignment to keep your subject organized.'}
               </Text>
             </View>
 
@@ -155,6 +258,7 @@ export default function CreateAssignment() {
                 <TextInput
                   className={inputClassName}
                   placeholder="Enter assignment title"
+                  placeholderTextColor="#9CA3AF"
                   value={title}
                   onChangeText={SetTitle}
                   returnKeyType="next"
@@ -166,6 +270,7 @@ export default function CreateAssignment() {
                 <TextInput
                   className={`${inputClassName} min-h-28`}
                   placeholder="Add a short description"
+                  placeholderTextColor="#9CA3AF"
                   value={description}
                   onChangeText={SetDescription}
                   multiline
@@ -178,6 +283,7 @@ export default function CreateAssignment() {
                 <TextInput
                   className={inputClassName}
                   placeholder="YYYY-MM-DD"
+                  placeholderTextColor="#9CA3AF"
                   value={deadline}
                   onChangeText={SetDeadline}
                   autoCapitalize="none"
@@ -222,19 +328,19 @@ export default function CreateAssignment() {
                 className={`h-14 items-center justify-center rounded-2xl ${
                   isSaving ? 'bg-accent-disabled' : 'bg-accent'
                 }`}
-                onPress={CreateAssignment}
+                onPress={handleSubmit}
                 disabled={isSaving}
               >
                 {isSaving ? (
                   <View className="flex-row items-center">
                     <ActivityIndicator size="small" />
                     <Text className="ml-3 text-base font-bold text-text-inverse">
-                      Creating...
+                      {isEditMode ? 'Saving...' : 'Creating...'}
                     </Text>
                   </View>
                 ) : (
                   <Text className="text-base font-bold text-text-inverse">
-                    Create Assignment
+                    {isEditMode ? 'Save Changes' : 'Create Assignment'}
                   </Text>
                 )}
               </Pressable>
