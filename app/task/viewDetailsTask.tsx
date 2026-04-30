@@ -1,4 +1,6 @@
+import { formatDateTime } from '@/lib/date';
 import { CheckAssignmentCompletion } from '@/lib/progress';
+import { getSubjectColorSet, type SubjectColor } from '@/lib/subjectColors';
 import { supabase } from '@/lib/supabase';
 import type { Task } from '@/lib/types';
 import { Session } from '@supabase/supabase-js';
@@ -8,8 +10,14 @@ import { Alert, Pressable, Text, View } from 'react-native';
 
 export default function ViewDetailsTask() {
   const { tId } = useLocalSearchParams<{ tId: string }>();
+
   const [task, SetTask] = useState<Task | null>(null);
   const [session, SetSession] = useState<Session | null>(null);
+  const [contextMeta, setContextMeta] = useState({
+    subjectTitle: 'No Subject',
+    assignmentTitle: 'No Assignment',
+    subjectColor: 'slate' as SubjectColor,
+  });
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => SetSession(data.session ?? null));
@@ -28,12 +36,55 @@ export default function ViewDetailsTask() {
       .eq('tId', taskId)
       .single();
 
-    if (error) {
+    if (error || !data) {
+      console.log('GetTask error:', error);
       Alert.alert('Task could not be fetched, please try again');
       return;
     }
 
-    SetTask(data ?? null);
+    SetTask(data);
+
+    if (data.aId) {
+      const { data: assignmentData, error: assignmentError } = await supabase
+        .from('assignments')
+        .select('title, sId')
+        .eq('aId', data.aId)
+        .single();
+
+      if (assignmentError || !assignmentData) {
+        console.log('GetTaskAssignment error:', assignmentError);
+        setContextMeta({
+          subjectTitle: 'Unknown Subject',
+          assignmentTitle: 'Unknown Assignment',
+          subjectColor: 'slate',
+        });
+        return;
+      }
+
+      if (assignmentData.sId) {
+        const { data: subjectData, error: subjectError } = await supabase
+          .from('subjects')
+          .select('title, color')
+          .eq('sId', assignmentData.sId)
+          .single();
+
+        if (subjectError || !subjectData) {
+          console.log('GetTaskSubject error:', subjectError);
+          setContextMeta({
+            subjectTitle: 'Unknown Subject',
+            assignmentTitle: assignmentData.title ?? 'Unknown Assignment',
+            subjectColor: 'slate',
+          });
+          return;
+        }
+
+        setContextMeta({
+          subjectTitle: subjectData.title ?? 'Unknown Subject',
+          assignmentTitle: assignmentData.title ?? 'Unknown Assignment',
+          subjectColor: (subjectData.color as SubjectColor | undefined) ?? 'slate',
+        });
+      }
+    }
   };
 
   useFocusEffect(
@@ -85,6 +136,8 @@ export default function ViewDetailsTask() {
     );
   };
 
+  const colorSet = getSubjectColorSet(contextMeta.subjectColor);
+
   if (!task) {
     return (
       <View className="flex-1 bg-app-bg px-5 pt-6">
@@ -104,7 +157,13 @@ export default function ViewDetailsTask() {
           }}
         />
 
-        <View className="rounded-3xl border border-app-border bg-app-surface p-5">
+        <View
+          className="rounded-3xl bg-app-surface p-5"
+          style={{
+            borderWidth: 1,
+            borderColor: colorSet.strong,
+          }}
+        >
           <Text className="text-2xl font-bold text-text-main">
             Task not found
           </Text>
@@ -145,14 +204,20 @@ export default function ViewDetailsTask() {
         }}
       />
 
-      <View className="rounded-3xl border border-app-border bg-app-surface p-5">
+      <View
+        className="rounded-3xl bg-app-surface p-5"
+        style={{
+          borderWidth: 1,
+          borderColor: colorSet.strong,
+        }}
+      >
         <View className="flex-row items-start">
           <View
-            className={`mr-3 mt-1 h-6 w-6 items-center justify-center rounded-md border-2 ${
-              task.isCompleted
-                ? 'border-accent bg-accent'
-                : 'border-app-border bg-app-subtle'
-            }`}
+            className="mr-3 mt-1 h-6 w-6 items-center justify-center rounded-md border-2"
+            style={{
+              borderColor: task.isCompleted ? colorSet.strong : '#DDD6C8',
+              backgroundColor: task.isCompleted ? colorSet.strong : '#EFEBE3',
+            }}
           >
             {task.isCompleted && (
               <Text className="text-sm font-bold text-text-inverse">✓</Text>
@@ -179,15 +244,27 @@ export default function ViewDetailsTask() {
             )}
 
             <View className="mt-4 flex-row flex-wrap">
+              <View
+                className="mr-2 mb-2 rounded-full px-3 py-1"
+                style={{ backgroundColor: colorSet.soft }}
+              >
+                <Text
+                  className="text-xs font-semibold"
+                  style={{ color: colorSet.strong }}
+                >
+                  {contextMeta.subjectTitle}
+                </Text>
+              </View>
+
               <View className="mr-2 mb-2 rounded-full bg-app-subtle px-3 py-1">
                 <Text className="text-xs font-semibold text-text-secondary">
-                  {task.isCompleted ? 'Completed' : 'In progress'}
+                  {contextMeta.assignmentTitle}
                 </Text>
               </View>
             </View>
 
             <Text className="mt-2 text-sm text-text-muted">
-              Last changed: {task.lastChanged}
+              Last changed: {formatDateTime(task.lastChanged)}
             </Text>
           </View>
         </View>

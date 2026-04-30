@@ -1,4 +1,4 @@
-import { formatDateTime } from '@/lib/date';
+import { formatDate, formatDateTime } from '@/lib/date';
 import { CheckAssignmentCompletion, CheckSubjectCompletion } from '@/lib/progress';
 import { getSubjectColorSet, type SubjectColor } from '@/lib/subjectColors';
 import { supabase } from '@/lib/supabase';
@@ -288,7 +288,7 @@ export default function ViewDetailsAssignment() {
 
                     <View className="mr-2 mb-2 rounded-full bg-app-subtle px-3 py-1">
                       <Text className="text-xs font-semibold text-text-secondary">
-                        Deadline: {formatDateTime(assignment.deadline) || 'No deadline'}
+                        Deadline: {formatDate(assignment.deadline) || 'No deadline'}
                       </Text>
                     </View>
                   </View>
@@ -332,7 +332,7 @@ export default function ViewDetailsAssignment() {
                   className="mr-3 flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-subtle py-3"
                   onPress={() =>
                     router.push({
-                      pathname: '/assignment/editAssignment',
+                      pathname: '/assignment/upsertAssignment',
                       params: { aId: assignment.aId },
                     })
                   }
@@ -385,7 +385,7 @@ export default function ViewDetailsAssignment() {
               className="mb-4 rounded-3xl bg-app-surface p-4"
               style={{
                 borderWidth: 1,
-                borderColor: colorSet.soft,
+                borderColor: colorSet.strong,
               }}
             >
               <Pressable
@@ -459,7 +459,7 @@ export default function ViewDetailsAssignment() {
         }}
         renderSectionFooter={({ section }) =>
           section.data.length === 0 ? (
-            <View className="mb-6 rounded-3xl border border-app-border bg-app-surface p-5">
+            <View className="mb-6 rounded-3xl border border-app-border bg-app-surface p-5" style={{ borderColor: colorSet.strong }}>
               <Text className="text-center text-base font-semibold text-text-secondary">
                 {section.emptyMessage}
               </Text>

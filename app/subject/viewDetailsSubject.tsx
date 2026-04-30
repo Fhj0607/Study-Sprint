@@ -86,6 +86,20 @@ export default function ViewDetailsSubject() {
     }, [session, sId])
   );
 
+  useEffect(() => {
+    const test = async () => {
+      try {
+        const { data, error } = await supabase.from('subjects').select('*').limit(1);
+        console.log('test data:', data);
+        console.log('test error:', error);
+      } catch (err) {
+        console.log('test crashed:', err);
+      }
+    };
+
+    test();
+  }, []);
+
   const DeleteSubject = async (subjectId: string) => {
     Alert.alert(
       'Delete Subject',
@@ -348,7 +362,7 @@ export default function ViewDetailsSubject() {
               className="mb-6 mt-5 h-14 items-center justify-center rounded-2xl bg-accent"
               onPress={() =>
                 router.push({
-                  pathname: '/assignment/createAssignment',
+                  pathname: '/assignment/upsertAssignment',
                   params: { sId: subject.sId },
                 })
               }
@@ -374,7 +388,12 @@ export default function ViewDetailsSubject() {
           const isOwner = session?.user.id === item.uId;
 
           return (
-            <View className="mb-4 rounded-3xl border border-app-border bg-app-surface p-4">
+            <View 
+              className="mb-4 rounded-3xl border border-app-border bg-app-surface p-4"
+              style={{
+                borderColor: colorSet.strong,
+              }}
+            >
               <Pressable
                 onPress={() =>
                   router.push({
@@ -406,14 +425,6 @@ export default function ViewDetailsSubject() {
                       Deadline: {formatDate(item.deadline)}
                     </Text>
                   </View>
-
-                  <View className="ml-3">
-                    <View className="rounded-full bg-app-subtle px-3 py-1">
-                      <Text className="text-xs font-semibold text-text-secondary">
-                        {item.isCompleted ? 'Completed' : 'Upcoming'}
-                      </Text>
-                    </View>
-                  </View>
                 </View>
               </Pressable>
 
@@ -423,7 +434,7 @@ export default function ViewDetailsSubject() {
                     className="mr-3 flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-subtle py-3"
                     onPress={() =>
                       router.push({
-                        pathname: '/assignment/editAssignment',
+                        pathname: '/assignment/upsertAssignment',
                         params: { aId: item.aId },
                       })
                     }
