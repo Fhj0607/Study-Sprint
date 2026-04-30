@@ -1,16 +1,22 @@
+import ViewDetailsAssignment from "@/app/assignment/viewDetailsAssignment";
+import { CheckSubjectCompletion } from "@/lib/progress";
 import { supabase } from "@/lib/supabase";
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { router } from "expo-router";
 import { Alert } from "react-native";
-import ViewDetailsAssignment from "../../app/assignment/viewDetailsAssignment";
 
-const mockSingleAssignment = jest.fn();
-const mockSelectAssignmentEq = jest.fn(() => ({ single: mockSingleAssignment, }));
-const mockSelectAssignment = jest.fn(() => ({ eq: mockSelectAssignmentEq, }));
-const mockSelectTasksEq = jest.fn();
-const mockSelectTasks = jest.fn(() => ({ eq: mockSelectTasksEq }));
-const mockDeleteAssignmentEq = jest.fn();
-const mockDeleteAssignment = jest.fn(() => ({ eq: mockDeleteAssignmentEq, }));
+const mockAssignmentSingle = jest.fn();
+const mockAssignmentSelectEq = jest.fn(() => ({ single: mockAssignmentSingle, }));
+const mockAssignmentSelect = jest.fn(() => ({ eq: mockAssignmentSelectEq, }));
+const mockAssignmentDeleteEq = jest.fn();
+const mockAssignmentDelete = jest.fn(() => ({ eq: mockAssignmentDeleteEq, }));
+
+const mockTasksSelectEq = jest.fn();
+const mockTasksSelect = jest.fn(() => ({ eq: mockTasksSelectEq }));
+
+const mockSubjectSingle = jest.fn();
+const mockSubjectSelectEq = jest.fn(() => ({ single: mockSubjectSingle }));
+const mockSubjectSelect = jest.fn(() => ({ eq: mockSubjectSelectEq }));
 
 jest.mock("expo-router", () => ({
   router: {
@@ -23,71 +29,95 @@ jest.mock("expo-router", () => ({
   useLocalSearchParams: () => ({
     aId: "assignment-123",
   }),
-  useFocusEffect: (callback: () => void) => callback(),
+  useFocusEffect: (callback: () => void) => {
+    const React = require("react");
+    React.useEffect(callback, [callback]);
+  },
 }));
 
-jest.mock("@/lib/supabase", () => {
-  return {
-    supabase: {
-      auth: {
-        getUser: jest.fn(() =>
-          Promise.resolve({
-            data: { user: { uId: "user-123" } },
-            error: null,
-          })
-        ),
-        getSession: jest.fn(() =>
-          Promise.resolve({
-            data: {
-              session: {
-                user: { uId: "user-123" },
-              },
-            },
-          })
-        ),
-        onAuthStateChange: jest.fn(() => ({
+jest.mock("@/lib/progress", () => ({
+  CheckSubjectCompletion: jest.fn(() => Promise.resolve()),
+}));
+
+jest.mock("@/lib/supabase", () => ({
+  supabase: {
+    auth: {
+      getUser: jest.fn(() =>
+        Promise.resolve({
+          data: { user: { id: "user-123" } },
+          error: null,
+        })
+      ),
+      getSession: jest.fn(() =>
+        Promise.resolve({
           data: {
-            subscription: {
-              unsubscribe: jest.fn(),
+            session: {
+              user: { id: "user-123" },
             },
           },
-        })),
-      },
-      from: jest.fn((table) => {
-        if (table === "assignments") {
-          return {
-            select: mockSelectAssignment,
-            delete: mockDeleteAssignment,
-          };
-        }
-
-        if (table === "tasks") {
-          return {
-            select: mockSelectTasks,
-          };
-        }
-
-        return {};
-      }),
+        })
+      ),
+      onAuthStateChange: jest.fn(() => ({
+        data: {
+          subscription: {
+            unsubscribe: jest.fn(),
+          },
+        },
+      })),
     },
-  };
-});
+    from: jest.fn((table: string) => {
+      if (table === "assignments") {
+        return {
+          select: mockAssignmentSelect,
+          delete: mockAssignmentDelete,
+        };
+      }
+
+      if (table === "tasks") {
+        return {
+          select: mockTasksSelect,
+        };
+      }
+
+      if (table === "subjects") {
+        return {
+          select: mockSubjectSelect,
+        };
+      }
+
+      return {};
+    }),
+  },
+}));
 
 const alertSpy = jest.spyOn(Alert, "alert");
 
 test("deletes a task and navigates back", async () => {
-  mockSingleAssignment.mockResolvedValue({ 
+  mockAssignmentSingle.mockResolvedValue({ 
     data: { 
       aId: "assignment-123",
       title: "create a simple test",
       uId: "user-123",
+      sId: "subject-123"
     },
     error: null,
   });
-  mockSelectTasksEq.mockResolvedValue({ data: [], error: null, })
-  mockDeleteAssignmentEq.mockResolvedValue({ error: null, });
+  mockTasksSelectEq.mockResolvedValue({ data: [], error: null, })
+  mockSubjectSingle.mockResolvedValue({
+    data: {
+      sId: "subject-123",
+      title: "ikt205g26v",
+      color: "blue",
+    },
+    error: null,
+  });
+  mockAssignmentDeleteEq.mockResolvedValue({ error: null, });
 
   const screen = render(<ViewDetailsAssignment />);
+
+  await screen.findByText("create a simple test");
+  await screen.findByText("ikt205g26v");
+
   fireEvent.press(await screen.findByTestId("delete-assignment-button"));
 
   expect(alertSpy).toHaveBeenCalledWith(
@@ -103,8 +133,9 @@ test("deletes a task and navigates back", async () => {
 
   await waitFor(() => {
     expect(supabase.from).toHaveBeenCalledWith("assignments");
-    expect(mockDeleteAssignment).toHaveBeenCalled();
-    expect(mockDeleteAssignmentEq).toHaveBeenCalledWith("aId", "assignment-123");
+    expect(mockAssignmentDelete).toHaveBeenCalled();
+    expect(mockAssignmentDeleteEq).toHaveBeenCalledWith("aId", "assignment-123");
+    expect(CheckSubjectCompletion).toHaveBeenCalledWith("subject-123");
     expect(router.back).toHaveBeenCalled();
   });
 });

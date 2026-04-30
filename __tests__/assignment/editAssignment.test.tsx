@@ -1,4 +1,5 @@
-import EditAssignment from "@/app/assignment/editAssignment";
+import UpsertAssignment from "@/app/assignment/upsertAssignment";
+import { CheckSubjectCompletion } from "@/lib/progress";
 import { supabase } from "@/lib/supabase";
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { router } from "expo-router";
@@ -26,7 +27,7 @@ jest.mock("expo-router", () => ({
 }));
 
 jest.mock("@/lib/progress", () => ({
-  CheckAssignmentCompletion: jest.fn(),
+  CheckSubjectCompletion: jest.fn(() => Promise.resolve()),
 }));
 
 jest.mock("@/lib/asyncStorage", () => ({
@@ -40,32 +41,31 @@ jest.mock("expo-notifications", () => ({
   },
 }));
 
-jest.mock("@/lib/supabase", () => {
-  return {
-    supabase: {
-      auth: {
-        getUser: jest.fn(() =>
-          Promise.resolve({
-            data: { user: { id: "user-123" } },
-            error: null,
-          })
-        ),
-      },
-      from: jest.fn(() => ({
-        select: mockSelect,
-        update: mockUpdate,
-      })),
+jest.mock("@/lib/supabase", () => ({
+  supabase: {
+    auth: {
+      getUser: jest.fn(() =>
+        Promise.resolve({
+          data: { user: { id: "user-123" } },
+          error: null,
+        })
+      ),
     },
-  };
-});
+    from: jest.fn(() => ({
+      select: mockSelect,
+      update: mockUpdate,
+    })),
+  },
+}));
 
 test("updates an assignment and navigates back", async () => {
   mockSingle.mockResolvedValue({ 
     data: {
         aId: "assignment-123", 
         title: "create a simple test",
-        uId: "user-123",
         deadline: "2026-04-25",
+        uId: "user-123",
+        sId: "subject-123",
     },
     error: null,
   });
@@ -73,15 +73,15 @@ test("updates an assignment and navigates back", async () => {
     data: {
         aId: "assignment-123", 
         title: "create a harder test",
-        uId: "user-123",
         deadline: "2026-04-25",
+        uId: "user-123",
     },
     error: null,
   });
 
-  const screen = render(<EditAssignment />);
+  const screen = render(<UpsertAssignment />);
   fireEvent.changeText(await screen.findByTestId("assignment-title-input"), "create a harder test");
-  fireEvent.press(screen.getByTestId("edit-assignment-button"));
+  fireEvent.press(screen.getByTestId("upsert-assignment-button"));
 
   await waitFor(() => {
     expect(supabase.from).toHaveBeenCalledWith("assignments");
@@ -94,6 +94,7 @@ test("updates an assignment and navigates back", async () => {
       })
     );
     expect(mockUpdateSingle).toHaveBeenCalled();
+    expect(CheckSubjectCompletion).toHaveBeenCalledWith("subject-123");
     expect(router.back).toHaveBeenCalled();
   });
 });

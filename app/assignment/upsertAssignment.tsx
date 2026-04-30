@@ -326,7 +326,7 @@ export default function UpsertAssignment() {
               </Pressable>
 
               <Pressable
-                testID = "create-assignment-button"
+                testID = "upsert-assignment-button"
                 className={`h-14 items-center justify-center rounded-2xl ${
                   isSaving ? 'bg-accent-disabled' : 'bg-accent'
                 }`}

@@ -238,7 +238,7 @@ export default function UpsertTask() {
               </Pressable>
 
               <Pressable
-                testID="create-task-button"
+                testID="upsert-task-button"
                 className={`h-14 items-center justify-center rounded-2xl ${
                   isSaving ? 'bg-accent-disabled' : 'bg-accent'
                 }`}

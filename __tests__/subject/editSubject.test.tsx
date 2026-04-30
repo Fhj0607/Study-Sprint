@@ -1,7 +1,7 @@
+import UpsertSubject from "@/app/subject/upsertSubject";
 import { supabase } from "@/lib/supabase";
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { router } from "expo-router";
-import EditSubject from "../../app/subject/editSubject";
 
 const mockUpdateEq = jest.fn();
 const mockUpdate = jest.fn(() => ({ eq: mockUpdateEq, }));
@@ -23,24 +23,22 @@ jest.mock("expo-router", () => ({
   useFocusEffect: (callback: () => void) => callback(),
 }));
 
-jest.mock("@/lib/supabase", () => {
-  return {
-    supabase: {
-      auth: {
-        getUser: jest.fn(() =>
-          Promise.resolve({
-            data: { user: { id: "user-123" } },
-            error: null,
-          })
-        ),
-      },
-      from: jest.fn(() => ({
-        select: mockSelect,
-        update: mockUpdate,
-      })),
+jest.mock("@/lib/supabase", () => ({
+  supabase: {
+    auth: {
+      getUser: jest.fn(() =>
+        Promise.resolve({
+          data: { user: { id: "user-123" } },
+          error: null,
+        })
+      ),
     },
-  };
-});
+    from: jest.fn(() => ({
+      select: mockSelect,
+      update: mockUpdate,
+    })),
+  },
+}));
 
 test("updates a subject and navigates back", async () => {
   mockSingle.mockResolvedValue({ 
@@ -53,9 +51,9 @@ test("updates a subject and navigates back", async () => {
   });
   mockUpdateEq.mockResolvedValue({ error: null, });
 
-  const screen = render(<EditSubject />);
+  const screen = render(<UpsertSubject />);
   fireEvent.changeText(await screen.findByTestId("subject-title-input"), "ikt206g26v");
-  fireEvent.press(screen.getByTestId("edit-subject-button"));
+  fireEvent.press(screen.getByTestId("upsert-subject-button"));
 
   await waitFor(() => {
     expect(supabase.from).toHaveBeenCalledWith("subjects");

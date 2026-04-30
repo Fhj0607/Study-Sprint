@@ -161,6 +161,7 @@ export default function UpsertSubject() {
                             <View className="mb-5">
                                 <Text className={labelClassName}>Title</Text>
                                 <TextInput className={inputClassName}
+                                    testID = "subject-title-input"
                                     placeholder="Enter subject title"
                                     placeholderTextColor="#9CA3AF"
                                     value={title}
@@ -311,6 +312,7 @@ export default function UpsertSubject() {
                             </Pressable>
 
                             <Pressable
+                                testID = "upsert-subject-button"
                                 className={`h-14 items-center justify-center rounded-2xl ${
                                     isSaving 
                                         ? 'bg-accent-disabled' 
