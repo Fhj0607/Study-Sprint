@@ -86,20 +86,6 @@ export default function ViewDetailsSubject() {
     }, [session, sId])
   );
 
-  useEffect(() => {
-    const test = async () => {
-      try {
-        const { data, error } = await supabase.from('subjects').select('*').limit(1);
-        console.log('test data:', data);
-        console.log('test error:', error);
-      } catch (err) {
-        console.log('test crashed:', err);
-      }
-    };
-
-    test();
-  }, []);
-
   const DeleteSubject = async (subjectId: string) => {
     Alert.alert(
       'Delete Subject',

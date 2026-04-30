@@ -41,7 +41,6 @@ export default function ViewDetailsAssignment() {
     .single();
 
     if (error || !data) {
-      console.log('GetAssignment error:', error);
       Alert.alert('Assignment could not be fetched, please try again');
       return;
     }
@@ -56,7 +55,6 @@ export default function ViewDetailsAssignment() {
         .single();
 
       if (subjectError || !subjectData) {
-        console.log('GetSubjectMeta error:', subjectError);
         setSubjectMeta({
           title: 'Unknown Subject',
           color: 'slate'
@@ -355,7 +353,7 @@ export default function ViewDetailsAssignment() {
               className="mb-6 mt-5 h-14 items-center justify-center rounded-2xl bg-accent"
               onPress={() =>
                 router.push({
-                  pathname: '/task/createTask',
+                  pathname: '/task/upsertTask',
                   params: { aId: assignment.aId },
                 })
               }
@@ -436,7 +434,7 @@ export default function ViewDetailsAssignment() {
                     className="mr-3 flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-subtle py-3"
                     onPress={() =>
                       router.push({
-                        pathname: '/task/editTask',
+                        pathname: '/task/upsertTask',
                         params: { tId: item.tId },
                       })
                     }

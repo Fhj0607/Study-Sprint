@@ -37,7 +37,6 @@ export default function ViewDetailsTask() {
       .single();
 
     if (error || !data) {
-      console.log('GetTask error:', error);
       Alert.alert('Task could not be fetched, please try again');
       return;
     }
@@ -52,7 +51,6 @@ export default function ViewDetailsTask() {
         .single();
 
       if (assignmentError || !assignmentData) {
-        console.log('GetTaskAssignment error:', assignmentError);
         setContextMeta({
           subjectTitle: 'Unknown Subject',
           assignmentTitle: 'Unknown Assignment',
@@ -69,7 +67,6 @@ export default function ViewDetailsTask() {
           .single();
 
         if (subjectError || !subjectData) {
-          console.log('GetTaskSubject error:', subjectError);
           setContextMeta({
             subjectTitle: 'Unknown Subject',
             assignmentTitle: assignmentData.title ?? 'Unknown Assignment',
@@ -275,7 +272,7 @@ export default function ViewDetailsTask() {
               className="mr-3 flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-subtle py-3"
               onPress={() =>
                 router.push({
-                  pathname: '/task/editTask',
+                  pathname: '/task/upsertTask',
                   params: { tId: task.tId },
                 })
               }
