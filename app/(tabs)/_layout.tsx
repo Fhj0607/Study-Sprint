@@ -56,14 +56,15 @@ export default function TabLayout() {
   }
 
   if (!session) {
-    return <Redirect href="/createUser" />;
+    return <Redirect href="/login" />;
   }
 
   return (
-    <Tabs>
-      <Tabs.Screen name="index" options={{title: "Index"}} />
-      <Tabs.Screen name="tasks" options={{title: "Tasks"}} />
-      <Tabs.Screen name="assignments" options={{title: "Assignments"}} />
+    <Tabs
+    screenOptions={{
+      headerShown: true,
+    }}>
+      <Tabs.Screen name="index" options={{title: 'Dashboard', tabBarLabel: 'Dashboard', }} />
       <Tabs.Screen name="subjects" options={{title: "Subjects"}} />
       <Tabs.Screen name="timer" options={{title: "Timer"}} />
     </Tabs>

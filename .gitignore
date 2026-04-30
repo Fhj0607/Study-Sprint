@@ -193,3 +193,4 @@ google-services.json
 # ---------------------------
 *.orig.*
 app-example
+newDeps/

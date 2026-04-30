@@ -1,7 +1,8 @@
 {
   "expo": {
-    "name": "Study-Sprint",
-    "slug": "study-sprint",
+    "name": "Study Sprint",
+    "slug": "Study-Sprint",
+    "owner": "ikt205g26v-g18",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -49,9 +50,8 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "d9e26d91-0f0c-4b97-b11a-20be2916e9f3"
+        "projectId": "2b2ec99b-a2ea-4991-8694-93f9e3d042a3"
       }
-    },
-    "owner": "ikt205g26v-g18"
+    }
   }
 }

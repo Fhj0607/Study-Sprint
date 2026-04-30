@@ -1,17 +1,23 @@
-import { defaultStyles } from '@/constants/defaultStyles';
+import { formatDate, formatDateTime } from '@/lib/date';
 import { CheckAssignmentCompletion, CheckSubjectCompletion } from '@/lib/progress';
+import { getSubjectColorSet, type SubjectColor } from '@/lib/subjectColors';
 import { supabase } from '@/lib/supabase';
 import type { Assignment, Task } from '@/lib/types';
 import { Session } from '@supabase/supabase-js';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Button, Pressable, SectionList, Text, View } from "react-native";
+import { Alert, Pressable, SectionList, Text, View } from "react-native";
+
 
 export default function ViewDetailsAssignment() {
   const { aId } = useLocalSearchParams<{ aId: string }>();
-  const [assignment, SetAssignment] = useState<Assignment | null>(null)
-  const [tasks, SetTasks] = useState<Task[]>([])
-  const [session, SetSession] = useState<Session | null>(null)
+  const [assignment, SetAssignment] = useState<Assignment | null>(null);
+  const [tasks, SetTasks] = useState<Task[]>([]);
+  const [session, SetSession] = useState<Session | null>(null);
+  const [subjectMeta, setSubjectMeta] = useState({
+    title: 'No Subject',
+    color: 'slate' as SubjectColor,
+  });
 
   const taskSections = [
     { title: "Upcoming Tasks", data: tasks.filter((task) => !task.isCompleted), emptyMessage: "No upcoming tasks" },
@@ -27,16 +33,41 @@ export default function ViewDetailsAssignment() {
     },
   [])
 
-  const GetAssignment = async (aId: string) => { 
-    const { data, error } = await supabase.from("assignments").select("*").eq("aId", aId).single();
+  const GetAssignment = async (assignmentId: string) => {
+  const { data, error } = await supabase
+    .from('assignments')
+    .select('*')
+    .eq('aId', assignmentId)
+    .single();
 
-    if (error) {
-      Alert.alert("Assignment could not be fetched, please try again");
+    if (error || !data) {
+      Alert.alert('Assignment could not be fetched, please try again');
       return;
     }
 
-    SetAssignment(data ?? null);
-  }
+    SetAssignment(data);
+
+    if (data.sId) {
+      const { data: subjectData, error: subjectError } = await supabase
+        .from('subjects')
+        .select('title, color')
+        .eq('sId', data.sId)
+        .single();
+
+      if (subjectError || !subjectData) {
+        setSubjectMeta({
+          title: 'Unknown Subject',
+          color: 'slate'
+        });
+        return;
+      }
+
+      setSubjectMeta({
+        title: subjectData.title ?? 'Unknown Subject',
+        color: (subjectData.color as SubjectColor | undefined) ?? 'slate'
+      });
+    }
+  };
 
   const GetTasks = async (aId: string) => { 
     const { data, error } = await supabase.from("tasks").select("*").eq("aId", aId);
@@ -134,115 +165,311 @@ export default function ViewDetailsAssignment() {
     )
   }
 
-  const progress = tasks.length === 0 ? 0 : Math.round((tasks.filter(task => task.isCompleted).length / tasks.length) * 100);
+  const colorSet = getSubjectColorSet(subjectMeta.color);
+
+  const completedTasks = tasks.filter((task) => task.isCompleted).length;
+  const totalTasks = tasks.length;
+  const remainingTasks = totalTasks - completedTasks;
+
+  const progress =
+    totalTasks === 0
+      ? 0
+      : Math.round((completedTasks / totalTasks) * 100);
+
+  if (!assignment) {
+    return (
+      <View className="flex-1 bg-app-bg px-5 pt-6">
+        <Stack.Screen
+          options={{
+            title: 'Details',
+          }}
+        />
+
+        <View
+          className="rounded-3xl bg-app-surface p-5"
+          style={{
+            borderWidth: 1,
+            borderColor: colorSet.strong,
+          }}
+        >
+          <Text className="text-2xl font-bold text-text-main">
+            Assignment not found
+          </Text>
+          <Text className="mt-2 text-base text-text-secondary">
+            The assignment could not be loaded.
+          </Text>
+
+          <Pressable
+            className="mt-5 h-12 items-center justify-center rounded-2xl bg-accent"
+            onPress={() => router.back()}
+          >
+            <Text className="text-base font-bold text-text-inverse">Go back</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
 
   return (
-    <View style={defaultStyles.container}>
+    <View className="flex-1 bg-app-bg">
       <Stack.Screen
         options={{
-          title: "Details",
-          headerTitleStyle: defaultStyles.title,
-          headerLeft: () => {
-            return (
-              <View style={defaultStyles.buttonContainer}>
-                <Button title="Back" onPress={router.back} />
-              </View>
-            )
-          },
-          headerRight: () => {
-            return (
-              <View style={defaultStyles.buttonContainer}>
-                <Button title="Logout" onPress={async () => await supabase.auth.signOut()} />
-              </View>
-            )
-          },
+          title: 'Assignment Details',
+          headerRight: () => (
+            <Pressable
+              className="rounded-full bg-app-subtle px-4 py-2"
+              onPress={async () => await supabase.auth.signOut()}
+            >
+              <Text className="text-sm font-semibold text-text-secondary">
+                Logout
+              </Text>
+            </Pressable>
+          ),
         }}
       />
 
-      {!assignment && (
-        <View style={defaultStyles.container}>
-          <Text style={defaultStyles.title}>Assignment not found</Text>
-        </View>
-      )}
-      
-      {assignment && (
-        <View style={defaultStyles.container}>
-          <View style={defaultStyles.container}>
-            <Text style={defaultStyles.title}>{assignment.title}</Text>
-            <Text style={defaultStyles.body}>{assignment.description}</Text>
-            <Text style={defaultStyles.body}>{assignment.deadline}</Text>
-            <View style={defaultStyles.checkbox}>
-                {assignment.isCompleted && <Text style={defaultStyles.checkboxMark}>✓</Text>}
-            </View>
-            <Text style={defaultStyles.body}>{assignment.lastChanged}</Text>
-            <View style={{ marginTop: 10 }}>
-              <Text style={{ marginBottom: 4 }}>{progress}%</Text>
-              
-              <View
-                style={{
-                  width: "100%",
-                  height: 12,
-                  backgroundColor: "#D9D9D9",
-                  borderRadius: 999,
-                  overflow: "hidden",
-                }}
-              >
+      <SectionList
+        className="flex-1"
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 32 }}
+        sections={taskSections}
+        keyExtractor={(item) => item.tId}
+        showsVerticalScrollIndicator={false}
+        stickySectionHeadersEnabled={false}
+        ListHeaderComponent={
+          <View>
+            <View
+              className="rounded-3xl bg-app-surface p-5"
+              style={{
+                borderWidth: 1,
+                borderColor: colorSet.strong,
+              }}
+            >
+              <View className="flex-row items-start">
                 <View
+                  className="mr-3 mt-1 h-6 w-6 items-center justify-center rounded-md border-2"
                   style={{
-                    width: `${progress}%`,
-                    height: "100%",
-                    backgroundColor: "#4CAF50",
+                    borderColor: assignment.isCompleted ? colorSet.strong : '#DDD6C8',
+                    backgroundColor: assignment.isCompleted ? colorSet.strong : '#EFEBE3',
                   }}
-                />
+                >
+                  {assignment.isCompleted && (
+                    <Text className="text-sm font-bold text-text-inverse">✓</Text>
+                  )}
+                </View>
+
+                <View className="flex-1">
+                  <Text className="text-2xl font-bold text-text-main">
+                    {assignment.title}
+                  </Text>
+
+                  {assignment.description ? (
+                    <Text className="mt-2 text-base leading-6 text-text-secondary">
+                      {assignment.description}
+                    </Text>
+                  ) : null}
+
+                  <View className="mt-4 flex-row flex-wrap">
+
+                    <View
+                      className="mr-2 mb-2 rounded-full px-3 py-1"
+                      style={{ backgroundColor: colorSet.soft }}
+                    >
+                      <Text
+                        className="text-xs font-semibold"
+                        style={{ color: colorSet.strong }}
+                      >
+                        {subjectMeta.title}
+                      </Text>
+                    </View>
+
+
+                    <View className="mr-2 mb-2 rounded-full bg-app-subtle px-3 py-1">
+                      <Text className="text-xs font-semibold text-text-secondary">
+                        Deadline: {formatDate(assignment.deadline) || 'No deadline'}
+                      </Text>
+                    </View>
+                  </View>
+
+                 <View className="mt-5">
+                  <View className="mb-2 flex-row items-center justify-between">
+                    <Text className="text-sm font-semibold text-text-secondary">
+                      Task Progress
+                    </Text>
+
+                    <Text className="text-sm font-bold text-text-main">
+                      {completedTasks}/{totalTasks}
+                    </Text>
+                  </View>
+
+                  <View className="h-3 overflow-hidden rounded-full bg-app-subtle">
+                    <View
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${progress}%`,
+                        backgroundColor: colorSet.strong,
+                      }}
+                    />
+                  </View>
+
+                  <Text className="mt-2 text-xs font-medium text-text-secondary">
+                    {remainingTasks === 0
+                      ? 'All tasks complete'
+                      : `${remainingTasks} task${remainingTasks === 1 ? '' : 's'} remaining`}
+                  </Text>
+                </View>
+
+                <Text className="mt-4 text-sm text-text-muted">
+                  Last changed: {formatDateTime(assignment.lastChanged)}
+                </Text>
+                </View>
+              </View>
+
+              <View className="mt-5 flex-row border-t border-app-border pt-5">
+                <Pressable
+                  className="mr-3 flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-subtle py-3"
+                  onPress={() =>
+                    router.push({
+                      pathname: '/assignment/upsertAssignment',
+                      params: { aId: assignment.aId },
+                    })
+                  }
+                >
+                  <Text className="text-sm font-bold text-text-secondary">Edit</Text>
+                </Pressable>
+
+                <Pressable
+                  className="flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-surface py-3"
+                  onPress={() => DeleteAssignment(assignment.aId)}
+                >
+                  <Text className="text-sm font-bold text-status-danger">
+                    Delete
+                  </Text>
+                </Pressable>
               </View>
             </View>
 
-            <Button title="Edit" onPress={() => router.push({pathname: "/assignment/editAssignment", params: { aId: assignment.aId }})} />
-            <Button testID = "delete-assignment-button" title="Delete" onPress={() => DeleteAssignment(assignment.aId)} />
+            <Pressable
+              className="mb-6 mt-5 h-14 items-center justify-center rounded-2xl bg-accent"
+              onPress={() =>
+                router.push({
+                  pathname: '/task/upsertTask',
+                  params: { aId: assignment.aId },
+                })
+              }
+            >
+              <Text className="text-base font-bold text-text-inverse">
+                Create Task
+              </Text>
+            </Pressable>
           </View>
+        }
+        renderSectionHeader={({ section: { title, data } }) => (
+          <View className="mb-3 mt-2 flex-row items-center justify-between">
+            <Text className="text-lg font-bold text-text-main">{title}</Text>
 
-          <View style={defaultStyles.buttonContainer}>
-            <Button title="Create Task" onPress={() => router.push({pathname: "/task/createTask", params: { aId: assignment.aId }})} />
+            <View className="rounded-full bg-app-subtle px-3 py-1">
+              <Text className="text-xs font-semibold text-text-muted">
+                {data.length}
+              </Text>
+            </View>
           </View>
+        )}
+        renderItem={({ item }) => {
+          const isOwner = session?.user.id === item.uId;
 
-          <SectionList
-            sections={taskSections}
-            keyExtractor={(item) => item.tId}
-            renderSectionHeader={({ section: { title } }) => <Text style={defaultStyles.subtitle}>{title}</Text>}
-            renderItem={({ item }) => {
-              const isOwner = session?.user.id === item.uId;
-          
-              return (
-                <View style={defaultStyles.container}>
-                  <Pressable style={defaultStyles.container} onPress={() => router.push({pathname: "/task/viewDetailsTask", params: { tId: item.tId }})}>
-                    <Text style={defaultStyles.boldBody}>{item.title}</Text>
-                    <View style={defaultStyles.checkbox}>
-                      {item.isCompleted && <Text style={defaultStyles.checkboxMark}>✓</Text>}
-                    </View>
+          return (
+            <View
+              className="mb-4 rounded-3xl bg-app-surface p-4"
+              style={{
+                borderWidth: 1,
+                borderColor: colorSet.strong,
+              }}
+            >
+              <Pressable
+                onPress={() =>
+                  router.push({
+                    pathname: '/task/viewDetailsTask',
+                    params: { tId: item.tId },
+                  })
+                }
+              >
+                <View className="flex-row items-start">
+                  <View
+                    className="mr-3 mt-1 h-6 w-6 items-center justify-center rounded-md border-2"
+                    style={{
+                      borderColor: item.isCompleted ? colorSet.strong : '#DDD6C8',
+                      backgroundColor: item.isCompleted ? colorSet.strong : '#EFEBE3',
+                    }}
+                  >
+                    {item.isCompleted && (
+                      <Text className="text-sm font-bold text-text-inverse">✓</Text>
+                    )}
+                  </View>
+
+                  <View className="flex-1">
+                    <Text
+                      className={`text-base font-bold ${
+                        item.isCompleted ? 'text-text-secondary' : 'text-text-main'
+                      }`}
+                    >
+                      {item.title}
+                    </Text>
+
+                    {item.description ? (
+                      <Text
+                        className="mt-1 text-sm leading-5 text-text-muted"
+                        numberOfLines={2}
+                      >
+                        {item.description}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+              </Pressable>
+
+              {isOwner && (
+                <View className="mt-4 flex-row border-t border-app-border pt-4">
+                  <Pressable
+                    className="mr-3 flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-subtle py-3"
+                    onPress={() =>
+                      router.push({
+                        pathname: '/task/upsertTask',
+                        params: { tId: item.tId },
+                      })
+                    }
+                  >
+                    <Text className="text-sm font-bold text-text-secondary">Edit</Text>
                   </Pressable>
-          
-                  {isOwner && (
-                    <View style={defaultStyles.buttonContainer}>
-                      <Button title="Edit" onPress={() => router.push({pathname: "/task/editTask", params: { tId: item.tId }})} />
-                      <Button title="Delete" onPress={() => DeleteTask(item.tId, item.aId)} />
-                    </View>
-                  )}
+
+                  <Pressable
+                    className="flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-surface py-3"
+                    onPress={() => DeleteTask(item.tId, item.aId)}
+                  >
+                    <Text className="text-sm font-bold text-status-danger">
+                      Delete
+                    </Text>
+                  </Pressable>
                 </View>
-              );
-            }}
-            renderSectionFooter={({ section }) =>
-              section.data.length === 0 ? (
-                <View style={defaultStyles.container}>
-                  <Text style={defaultStyles.body}>{section.emptyMessage}</Text>
-                  <View style={defaultStyles.separator} />
-                </View>
-              ) : (
-                <View style={defaultStyles.separator} />
-              )
-            }
-          />
-        </View>
-      )}
+              )}
+            </View>
+          );
+        }}
+        renderSectionFooter={({ section }) =>
+          section.data.length === 0 ? (
+            <View className="mb-6 rounded-3xl border border-app-border bg-app-surface p-5" style={{ borderColor: colorSet.strong }}>
+              <Text className="text-center text-base font-semibold text-text-secondary">
+                {section.emptyMessage}
+              </Text>
+              <Text className="mt-1 text-center text-sm text-text-muted">
+                Tasks for this assignment will show up here.
+              </Text>
+            </View>
+          ) : (
+            <View className="mb-2" />
+          )
+        }
+      />
     </View>
   );
 }
