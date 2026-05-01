@@ -188,6 +188,7 @@ export default function ViewDetailsTask() {
       <Stack.Screen
         options={{
           title: 'Task Details',
+          headerTitleAlign: 'center',
           headerRight: () => (
             <Pressable
               className="rounded-full bg-app-subtle px-4 py-2"
@@ -281,7 +282,18 @@ export default function ViewDetailsTask() {
                 Edit
               </Text>
             </Pressable>
-
+            <Pressable
+              className='mr-3 flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-subtle py-3'
+              onPress={() => 
+                router.push({
+                  pathname: '/task/timer',
+                  params: { tId: task.tId}
+                })
+              }>
+                <Text className='text.sm font-bold text-text-secondary'>
+                  Start Sprint
+                </Text>
+              </Pressable>
             <Pressable
               className="flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-surface py-3"
               onPress={() => DeleteTask(task.tId)}

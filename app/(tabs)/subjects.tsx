@@ -56,6 +56,7 @@ export default function Subjects() {
       <Stack.Screen
         options={{
           title: 'Subjects',
+          headerTitleAlign: 'center',
           headerRight: () => (
             <Pressable
               className="rounded-full bg-app-subtle px-4 py-2"

@@ -34,6 +34,7 @@ export default function HomeScreen() {
       <Stack.Screen
         options={{
           title: "Home",
+          headerTitleAlign: 'center',
           headerTitleStyle: defaultStyles.title,
           headerRight: () => {
             return (

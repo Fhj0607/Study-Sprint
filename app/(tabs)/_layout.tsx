@@ -66,7 +66,6 @@ export default function TabLayout() {
     }}>
       <Tabs.Screen name="index" options={{title: 'Dashboard', tabBarLabel: 'Dashboard', }} />
       <Tabs.Screen name="subjects" options={{title: "Subjects"}} />
-      <Tabs.Screen name="timer" options={{title: "Timer"}} />
     </Tabs>
   );
 }

@@ -173,6 +173,7 @@ export default function ViewDetailsSubject() {
         <Stack.Screen
           options={{
             title: 'Subject Details',
+            headerTitleAlign: 'center',
           }}
         />
 

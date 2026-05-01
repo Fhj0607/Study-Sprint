@@ -5,6 +5,7 @@ export default function TaskLayout() {
     <Stack>
       <Stack.Screen name="upsertTask" options={{ title: "Create Task" }} />
       <Stack.Screen name="viewDetailsTask" options={{ title: "Task Details" }} />
+      <Stack.Screen name='timer' options={{title: 'Sprint'}} />
     </Stack>
   );
 }

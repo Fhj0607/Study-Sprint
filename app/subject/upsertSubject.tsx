@@ -94,7 +94,7 @@ export default function UpsertSubject() {
 
         if(result.error) {
             Alert.alert(
-              isEditMode 
+                isEditMode 
                 ? 'Subject could not be updated, please try again' 
                 : 'Subject could not be created, please try again'
             );
@@ -129,6 +129,7 @@ export default function UpsertSubject() {
                 options= {{
                     title: isEditMode ? 'Edit Subject' : 'Create Subject',
                     headerTitleStyle: defaultStyles.title,
+                    headerTitleAlign: 'center',
                 }} 
             />
 

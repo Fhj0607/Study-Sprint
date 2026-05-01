@@ -223,6 +223,7 @@ export default function UpsertAssignment() {
         options={{
           title: isEditMode ? 'Edit Assignment' : 'Create Assignment',
           headerTitleStyle: defaultStyles.title,
+          headerTitleAlign: 'center',
         }}
       />
 

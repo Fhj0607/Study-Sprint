@@ -182,6 +182,7 @@ export default function ViewDetailsAssignment() {
         <Stack.Screen
           options={{
             title: 'Details',
+            headerTitleAlign: 'center',
           }}
         />
 

@@ -148,6 +148,7 @@ export default function UpsertTask() {
         options={{
           title: isEditMode ? 'Edit Task' : 'Create Task',
           headerTitleStyle: defaultStyles.title,
+          headerTitleAlign: 'center',
         }}
       />
 
