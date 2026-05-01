@@ -324,35 +324,37 @@ export default function ViewDetailsSubject() {
                 </View>
               </View>
 
-              <View className="mt-5">
-                <View className="mb-2 flex-row items-center justify-between">
-                  <Text className="text-sm font-semibold text-text-secondary">
-                    Assignment Progress
-                  </Text>
+              {totalAssignments > 0 ? (
+                <View className="mt-5">
+                  <View className="mb-2 flex-row items-center justify-between">
+                    <Text className="text-sm font-semibold text-text-secondary">
+                      Assignment Progress
+                    </Text>
 
-                  <Text className="text-sm font-bold text-text-main">
-                    {completedAssignments}/{totalAssignments}
+                    <Text className="text-sm font-bold text-text-main">
+                      {completedAssignments}/{totalAssignments}
+                    </Text>
+                  </View>
+
+                  <View className="h-3 overflow-hidden rounded-full bg-app-subtle">
+                    <View
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${progress}%`,
+                        backgroundColor: colorSet.strong,
+                      }}
+                    />
+                  </View>
+
+                  <Text className="mt-2 text-xs font-medium text-text-secondary">
+                    {remainingAssignments === 0
+                      ? 'All assignments complete'
+                      : `${remainingAssignments} assignment${
+                          remainingAssignments === 1 ? '' : 's'
+                        } remaining`}
                   </Text>
                 </View>
-
-                <View className="h-3 overflow-hidden rounded-full bg-app-subtle">
-                  <View
-                    className="h-full rounded-full"
-                    style={{
-                      width: `${progress}%`,
-                      backgroundColor: colorSet.strong,
-                    }}
-                  />
-                </View>
-
-                <Text className="mt-2 text-xs font-medium text-text-secondary">
-                  {remainingAssignments === 0
-                    ? 'All assignments complete'
-                    : `${remainingAssignments} assignment${
-                        remainingAssignments === 1 ? '' : 's'
-                      } remaining`}
-                </Text>
-              </View>
+              ) : null}
 
               <Text className="mt-4 text-sm text-text-muted">
                 Last changed: {formatDateTime(subject.lastChanged)}
