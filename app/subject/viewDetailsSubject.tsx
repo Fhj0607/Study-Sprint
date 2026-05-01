@@ -78,6 +78,32 @@ export default function ViewDetailsSubject() {
     SetAssignments(data ?? []);
   };
 
+  const ToggleAssignmentCompletion = async (assignment: Assignment) => {
+    const nextIsCompleted = !assignment.isCompleted;
+
+    const { error } = await supabase
+      .from('assignments')
+      .update({
+        isCompleted: nextIsCompleted,
+        lastChanged: new Date().toISOString(),
+      })
+      .eq('aId', assignment.aId);
+
+    if (error) {
+      Alert.alert('Assignment could not be updated, please try again');
+      return;
+    }
+
+    try {
+      await CheckSubjectCompletion(assignment.sId);
+    } catch {
+      Alert.alert('Failed to update subject status');
+    }
+
+    await GetAssignments(assignment.sId);
+    await GetSubject(assignment.sId);
+  };
+
   useFocusEffect(
     useCallback(() => {
       if (!session || !sId) {
@@ -267,7 +293,7 @@ export default function ViewDetailsSubject() {
           paddingTop: 20,
           paddingBottom: 32,
         }}
-        sections={assignmentSections}
+        sections={totalAssignments === 0 ? [] : assignmentSections}
         keyExtractor={(item) => item.aId}
         showsVerticalScrollIndicator={false}
         stickySectionHeadersEnabled={false}
@@ -396,7 +422,7 @@ export default function ViewDetailsSubject() {
               }
             >
               <Text className="text-base font-bold text-text-inverse">
-                Create Assignment
+                Add Assignment
               </Text>
             </Pressable>
           </View>
@@ -422,15 +448,16 @@ export default function ViewDetailsSubject() {
                 borderColor: colorSet.strong,
               }}
             >
-              <Pressable
-                onPress={() =>
-                  router.push({
-                    pathname: '/assignment/viewDetailsAssignment',
-                    params: { aId: item.aId },
-                  })
-                }
-              >
-                <View className="flex-row items-center">
+              <View className="flex-row items-center">
+                <Pressable
+                  className="flex-1"
+                  onPress={() =>
+                    router.push({
+                      pathname: '/assignment/viewDetailsAssignment',
+                      params: { aId: item.aId },
+                    })
+                  }
+                >
                   <View className="flex-1">
                     <Text
                       className={`text-base font-bold ${
@@ -453,11 +480,24 @@ export default function ViewDetailsSubject() {
                       Deadline: {formatDate(item.deadline)}
                     </Text>
                   </View>
-                </View>
-              </Pressable>
+                </Pressable>
+              </View>
 
               {isOwner && (
                 <View className="mt-4 flex-row border-t border-app-border pt-4">
+                  <Pressable
+                    className="mr-3 flex-1 items-center justify-center rounded-2xl py-3"
+                    style={{ backgroundColor: item.isCompleted ? '#EFEBE3' : colorSet.soft }}
+                    onPress={() => ToggleAssignmentCompletion(item)}
+                  >
+                    <Text
+                      className="text-sm font-bold"
+                      style={{ color: colorSet.strong }}
+                    >
+                      {item.isCompleted ? 'Reopen' : 'Complete'}
+                    </Text>
+                  </Pressable>
+
                   <Pressable
                     className="mr-3 flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-subtle py-3"
                     onPress={() =>
@@ -485,6 +525,16 @@ export default function ViewDetailsSubject() {
             </View>
           );
         }}
+        ListEmptyComponent={
+          <View className="mb-6 rounded-3xl border border-app-border bg-app-surface p-5">
+            <Text className="text-center text-base font-semibold text-text-secondary">
+              No assignments yet
+            </Text>
+            <Text className="mt-1 text-center text-sm text-text-muted">
+              Add one when this subject has work to track.
+            </Text>
+          </View>
+        }
         renderSectionFooter={({ section }) =>
           section.data.length === 0 ? (
             <View className="mb-6 rounded-3xl border border-app-border bg-app-surface p-5">

@@ -212,18 +212,6 @@ export default function ViewDetailsTask() {
         }}
       >
         <View className="flex-row items-start">
-          <View
-            className="mr-3 mt-1 h-6 w-6 items-center justify-center rounded-md border-2"
-            style={{
-              borderColor: task.isCompleted ? colorSet.strong : '#DDD6C8',
-              backgroundColor: task.isCompleted ? colorSet.strong : '#EFEBE3',
-            }}
-          >
-            {task.isCompleted && (
-              <Text className="text-sm font-bold text-text-inverse">✓</Text>
-            )}
-          </View>
-
           <View className="flex-1">
             <Text
               className={`text-2xl font-bold ${

@@ -167,6 +167,32 @@ export default function ViewDetailsAssignment() {
     )
   }
 
+  const ToggleTaskCompletion = async (task: Task) => {
+    const nextIsCompleted = !task.isCompleted;
+
+    const { error } = await supabase
+      .from("tasks")
+      .update({
+        isCompleted: nextIsCompleted,
+        lastChanged: new Date().toISOString(),
+      })
+      .eq("tId", task.tId);
+
+    if (error) {
+      Alert.alert("Task could not be updated, please try again");
+      return;
+    }
+
+    try {
+      await CheckAssignmentCompletion(task.aId);
+    } catch {
+      Alert.alert("Failed to update assignment completion state");
+    }
+
+    await GetTasks(task.aId);
+    await GetAssignment(task.aId);
+  }
+
   const colorSet = getSubjectColorSet(subjectMeta.color);
 
   const completedTasks = tasks.filter((task) => task.isCompleted).length;
@@ -234,7 +260,7 @@ export default function ViewDetailsAssignment() {
       <SectionList
         className="flex-1"
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 32 }}
-        sections={taskSections}
+        sections={totalTasks === 0 ? [] : taskSections}
         keyExtractor={(item) => item.tId}
         showsVerticalScrollIndicator={false}
         stickySectionHeadersEnabled={false}
@@ -248,18 +274,6 @@ export default function ViewDetailsAssignment() {
               }}
             >
               <View className="flex-row items-start">
-                <View
-                  className="mr-3 mt-1 h-6 w-6 items-center justify-center rounded-md border-2"
-                  style={{
-                    borderColor: assignment.isCompleted ? colorSet.strong : '#DDD6C8',
-                    backgroundColor: assignment.isCompleted ? colorSet.strong : '#EFEBE3',
-                  }}
-                >
-                  {assignment.isCompleted && (
-                    <Text className="text-sm font-bold text-text-inverse">✓</Text>
-                  )}
-                </View>
-
                 <View className="flex-1">
                   <Text className="text-2xl font-bold text-text-main">
                     {assignment.title}
@@ -399,18 +413,6 @@ export default function ViewDetailsAssignment() {
                 }
               >
                 <View className="flex-row items-start">
-                  <View
-                    className="mr-3 mt-1 h-6 w-6 items-center justify-center rounded-md border-2"
-                    style={{
-                      borderColor: item.isCompleted ? colorSet.strong : '#DDD6C8',
-                      backgroundColor: item.isCompleted ? colorSet.strong : '#EFEBE3',
-                    }}
-                  >
-                    {item.isCompleted && (
-                      <Text className="text-sm font-bold text-text-inverse">✓</Text>
-                    )}
-                  </View>
-
                   <View className="flex-1">
                     <Text
                       className={`text-base font-bold ${
@@ -434,6 +436,19 @@ export default function ViewDetailsAssignment() {
 
               {isOwner && (
                 <View className="mt-4 flex-row border-t border-app-border pt-4">
+                  <Pressable
+                    className="mr-3 flex-1 items-center justify-center rounded-2xl py-3"
+                    style={{ backgroundColor: item.isCompleted ? '#EFEBE3' : colorSet.soft }}
+                    onPress={() => ToggleTaskCompletion(item)}
+                  >
+                    <Text
+                      className="text-sm font-bold"
+                      style={{ color: colorSet.strong }}
+                    >
+                      {item.isCompleted ? 'Reopen' : 'Complete'}
+                    </Text>
+                  </Pressable>
+
                   <Pressable
                     className="mr-3 flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-subtle py-3"
                     onPress={() =>
@@ -459,6 +474,19 @@ export default function ViewDetailsAssignment() {
             </View>
           );
         }}
+        ListEmptyComponent={
+          <View
+            className="mb-6 rounded-3xl border border-app-border bg-app-surface p-5"
+            style={{ borderColor: colorSet.strong }}
+          >
+            <Text className="text-center text-base font-semibold text-text-secondary">
+              No tasks needed yet
+            </Text>
+            <Text className="mt-1 text-center text-sm text-text-muted">
+              Add tasks if this assignment needs smaller steps.
+            </Text>
+          </View>
+        }
         renderSectionFooter={({ section }) =>
           section.data.length === 0 ? (
             <View className="mb-6 rounded-3xl border border-app-border bg-app-surface p-5" style={{ borderColor: colorSet.strong }}>
