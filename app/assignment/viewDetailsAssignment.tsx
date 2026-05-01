@@ -293,33 +293,35 @@ export default function ViewDetailsAssignment() {
                     </View>
                   </View>
 
-                 <View className="mt-5">
-                  <View className="mb-2 flex-row items-center justify-between">
-                    <Text className="text-sm font-semibold text-text-secondary">
-                      Task Progress
-                    </Text>
+                  {totalTasks > 0 ? (
+                    <View className="mt-5">
+                      <View className="mb-2 flex-row items-center justify-between">
+                        <Text className="text-sm font-semibold text-text-secondary">
+                          Task Progress
+                        </Text>
 
-                    <Text className="text-sm font-bold text-text-main">
-                      {completedTasks}/{totalTasks}
-                    </Text>
-                  </View>
+                        <Text className="text-sm font-bold text-text-main">
+                          {completedTasks}/{totalTasks}
+                        </Text>
+                      </View>
 
-                  <View className="h-3 overflow-hidden rounded-full bg-app-subtle">
-                    <View
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${progress}%`,
-                        backgroundColor: colorSet.strong,
-                      }}
-                    />
-                  </View>
+                      <View className="h-3 overflow-hidden rounded-full bg-app-subtle">
+                        <View
+                          className="h-full rounded-full"
+                          style={{
+                            width: `${progress}%`,
+                            backgroundColor: colorSet.strong,
+                          }}
+                        />
+                      </View>
 
-                  <Text className="mt-2 text-xs font-medium text-text-secondary">
-                    {remainingTasks === 0
-                      ? 'All tasks complete'
-                      : `${remainingTasks} task${remainingTasks === 1 ? '' : 's'} remaining`}
-                  </Text>
-                </View>
+                      <Text className="mt-2 text-xs font-medium text-text-secondary">
+                        {remainingTasks === 0
+                          ? 'All tasks complete'
+                          : `${remainingTasks} task${remainingTasks === 1 ? '' : 's'} remaining`}
+                      </Text>
+                    </View>
+                  ) : null}
 
                 <Text className="mt-4 text-sm text-text-muted">
                   Last changed: {formatDateTime(assignment.lastChanged)}
