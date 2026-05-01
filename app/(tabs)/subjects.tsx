@@ -4,13 +4,14 @@ import { Subject } from '@/lib/types';
 import { Session } from '@supabase/supabase-js';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
 import type { SubjectColor } from '@/lib/subjectColors';
 
 export default function Subjects() {
   const [subjects, SetSubjects] = useState<Subject[]>([]);
   const [session, SetSession] = useState<Session | null>(null);
+  const [isLoading, SetIsLoading] = useState(true);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -27,7 +28,12 @@ export default function Subjects() {
   }, []);
 
   const GetSubjects = async () => {
-    if (!session?.user.id) return;
+    if (!session?.user.id) {
+      SetIsLoading(false);
+      return;
+    }
+
+    SetIsLoading(true);
 
     const { data, error } = await supabase
       .from('subjects')
@@ -37,10 +43,12 @@ export default function Subjects() {
 
     if (error) {
       Alert.alert('Subjects could not be fetched, please try again');
+      SetIsLoading(false);
       return;
     }
 
     SetSubjects((data as Subject[]) ?? []);
+    SetIsLoading(false);
   };
 
   useFocusEffect(
@@ -85,7 +93,14 @@ export default function Subjects() {
           </Text>
         </View>
 
-        {subjects.length === 0 ? (
+        {isLoading ? (
+          <View className="items-center justify-center rounded-3xl border border-app-border bg-app-surface p-5">
+            <ActivityIndicator size="large" color="#2563eb" />
+            <Text className="mt-4 text-center text-base font-semibold text-text-secondary">
+              Loading subjects...
+            </Text>
+          </View>
+        ) : subjects.length === 0 ? (
           <View className="rounded-3xl border border-app-border bg-app-surface p-5">
             <Text className="text-center text-base font-semibold text-text-secondary">
               No subjects yet

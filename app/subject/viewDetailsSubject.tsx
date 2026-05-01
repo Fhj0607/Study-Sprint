@@ -6,7 +6,7 @@ import type { Assignment } from '@/lib/types';
 import { Session } from '@supabase/supabase-js';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, SectionList, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, SectionList, Text, View } from 'react-native';
 
 export type Subject = {
   sId: string;
@@ -23,6 +23,7 @@ export default function ViewDetailsSubject() {
   const [subject, SetSubject] = useState<Subject | null>(null);  
   const [assignments, SetAssignments] = useState<Assignment[]>([]);
   const [session, SetSession] = useState<Session | null>(null);
+  const [isLoading, SetIsLoading] = useState(true);
 
   const assignmentSections = [
     {
@@ -79,10 +80,16 @@ export default function ViewDetailsSubject() {
 
   useFocusEffect(
     useCallback(() => {
-      if (session && sId) {
-        GetSubject(sId);
-        GetAssignments(sId);
+      if (!session || !sId) {
+        return;
       }
+
+      SetIsLoading(true);
+      SetSubject(null);
+
+      Promise.all([GetSubject(sId), GetAssignments(sId)]).finally(() => {
+        SetIsLoading(false);
+      });
     }, [session, sId])
   );
 
@@ -180,6 +187,25 @@ export default function ViewDetailsSubject() {
     assignments.length === 0
       ? 0
       : Math.round((completedAssignments / totalAssignments) * 100);
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 bg-app-bg px-5 pt-6">
+        <Stack.Screen
+          options={{
+            title: 'Subject Details',
+          }}
+        />
+
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#2563eb" />
+          <Text className="mt-4 text-base font-semibold text-text-secondary">
+            Loading subject...
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   if (!subject) {
     return (
