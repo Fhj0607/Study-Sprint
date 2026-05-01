@@ -19,6 +19,18 @@ const colors = {
   text: '#ffffff',
 };
 
+
+/*
+  TODO
+  Make timer count down even when app is un-focused or closed.
+  Set const endTime = Date.now() + duration and save that to the task, maybe? 
+  Then trigger notif when endTime == Date.now()? 
+  Then fetch endTime from DB -> if null then timer is inactive
+  if !null then set timer to endTime  - Date.now() and start
+  Might have to save duration as well in DB to preserve timer animation persistance
+*/
+
+
 const TIMER_OPTIONS = [...Array(13).keys()].map((index) => (index === 0 ? 1 : index * 5));
 const ITEM_SIZE = width * 0.38;
 const ITEM_SPACING = (width - ITEM_SIZE) / 2;
