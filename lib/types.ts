@@ -8,6 +8,7 @@ export type Task = {
   lastChanged: string;
   uId: string;
   aId: string;
+  totalTimeInSeconds: number;
 };
 
 export type Assignment = {

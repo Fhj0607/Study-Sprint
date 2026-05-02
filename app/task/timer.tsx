@@ -9,6 +9,7 @@ import * as Haptics from 'expo-haptics';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import * as React from 'react';
 import {
+  Alert,
   Animated,
   Dimensions,
   Easing,
@@ -53,6 +54,19 @@ function formatTime(totalSeconds: number) {
   const seconds = totalSeconds % 60;
 
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function getSessionId(sessionData: unknown) {
+  if (!sessionData || typeof sessionData !== 'object') {
+    return null;
+  }
+
+  const maybeSession = sessionData as {
+    sessionId?: string;
+    sessionid?: string;
+  };
+
+  return maybeSession.sessionId ?? maybeSession.sessionid ?? null;
 }
 
 export default function TimerScreen() {
@@ -175,6 +189,29 @@ export default function TimerScreen() {
     outputRange: [20, 0],
   });
 
+  const finalizeSprintSession = React.useCallback(async (finalStatus: 'completed' | 'cancelled' | 'expired') => {
+    const activeSprint = await GetActiveSprint();
+
+    if (!activeSprint) {
+      return;
+    }
+
+    await RemoveActiveSprint();
+
+    const { error } = await supabase.rpc('finalize_sprint_session', {
+      p_session_id: activeSprint.sessionId,
+      p_final_status: finalStatus,
+      p_ended_at: new Date().toISOString(),
+    });
+
+    if (error) {
+      Alert.alert(
+        'Could not finalize sprint session',
+        error.message
+      );
+    }
+  }, []);
+
   const clearCountdownInterval = React.useCallback(() => {
     if (countdownRef.current) {
       clearInterval(countdownRef.current);
@@ -239,7 +276,7 @@ export default function TimerScreen() {
 
   const finishTimer = React.useCallback(() => {
     clearCountdownInterval();
-    void RemoveActiveSprint();
+    void finalizeSprintSession('completed');
 
     Animated.parallel([
       Animated.timing(countdownAnimation, {
@@ -284,6 +321,7 @@ export default function TimerScreen() {
     cancelButtonAnimation,
     clearCountdownInterval,
     countdownAnimation,
+    finalizeSprintSession,
     focusModeAnimation,
     resetSessionValues,
     taskDetailsAnimation,
@@ -392,7 +430,7 @@ export default function TimerScreen() {
       const remainingMs = activeSprint.endTime - Date.now();
 
       if (remainingMs <= 0) {
-        await RemoveActiveSprint();
+        await finalizeSprintSession('expired');
         return;
       }
 
@@ -424,6 +462,7 @@ export default function TimerScreen() {
     cancelOverlayAnimation,
     containerHeight,
     countdownAnimation,
+    finalizeSprintSession,
     focusModeAnimation,
     startCountdown,
     startProgressAnimation,
@@ -433,8 +472,34 @@ export default function TimerScreen() {
     timerIsRunning,
   ]);
 
-  const startTimerSession = React.useCallback(() => {
+  const startTimerSession = React.useCallback(async () => {
     if (!tId || timerIsRunning || containerHeight === 0) {
+      return;
+    }
+
+    const totalSeconds = duration * TIMER_UNIT_IN_SECONDS;
+    const endTime = Date.now() + totalSeconds * 1000;
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !userData.user?.id) {
+      Alert.alert('Could not start sprint', 'Missing signed-in user for sprint session.');
+      return;
+    }
+
+    const { data: sessionData, error: sessionError } = await supabase.rpc('start_sprint_session', {
+      p_task_id: tId,
+      p_user_id: userData.user.id,
+      p_planned_duration: totalSeconds,
+      p_started_at: new Date().toISOString(),
+    });
+
+    const sessionId = getSessionId(sessionData);
+
+    if (sessionError || !sessionId) {
+      Alert.alert(
+        'Could not start sprint',
+        sessionError?.message ?? 'Sprint session could not be created.'
+      );
       return;
     }
 
@@ -446,12 +511,11 @@ export default function TimerScreen() {
     countdownAnimation.setValue(0);
     cancelOverlayAnimation.setValue(0);
 
-    const totalSeconds = duration * TIMER_UNIT_IN_SECONDS;
-    const endTime = Date.now() + totalSeconds * 1000;
     sessionStartedAtRef.current = Date.now();
     sessionDurationMsRef.current = totalSeconds * 1000;
 
     void SaveActiveSprint({
+      sessionId,
       taskId: tId,
       durationSeconds: totalSeconds,
       endTime,
@@ -478,7 +542,7 @@ export default function TimerScreen() {
 
     clearCountdownInterval();
     clearCancelHoldTimeouts();
-    void RemoveActiveSprint();
+    void finalizeSprintSession('cancelled');
 
     runningAnimationRef.current?.stop();
     runningAnimationRef.current = null;
@@ -531,6 +595,7 @@ export default function TimerScreen() {
     clearCancelHoldTimeouts,
     clearCountdownInterval,
     countdownAnimation,
+    finalizeSprintSession,
     focusModeAnimation,
     resetSessionValues,
     taskDetailsAnimation,
@@ -680,8 +745,7 @@ export default function TimerScreen() {
       
       <Stack.Screen 
       options={{
-        title: timerIsRunning ? '' : 'Sprint',
-        headerBackVisible: !timerIsRunning,
+        title: timerIsRunning ? '' : 'Sprint duration',
         headerTransparent: true,
         headerTintColor: colors.text,
         headerTitleAlign: 'center',

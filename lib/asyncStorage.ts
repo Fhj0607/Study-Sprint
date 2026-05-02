@@ -4,6 +4,7 @@ const notificationKey = (aId: string) => `assignment_notification_${aId}`;
 const activeSprintKey = 'active_sprint';
 
 export type ActiveSprint = {
+  sessionId: string,
   taskId: string;
   durationSeconds: number;
   endTime: number;
