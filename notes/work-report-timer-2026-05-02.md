@@ -73,14 +73,58 @@ This gives the user a global way to get back to an already running sprint after 
 ---
 
 ### #UpcomingDeadlineCards
-Added a deadline-based task section to the dashboard when no sprint is active:
-- added a `Tasks with upcoming deadlines` section under the `No active sprint right now.` state
+Added a deadline-based task section to the dashboard:
+- added a `Tasks with upcoming deadlines` section to the dashboard state
 - fetched active tasks together with their assignment and subject context
 - sorted the tasks by assignment deadline in ascending order
 - rendered clickable cards that open the relevant task details screen
 - updated the metadata line at the bottom of each card to show subject, assignment, and deadline
 
 This makes the dashboard more useful as a next-action screen instead of only a placeholder when no sprint is running.
+
+---
+
+### #DashboardTaskCompletion
+Extended the dashboard task cards so they can directly affect task progress:
+- added a `Mark as completed` action to each upcoming task card
+- updated the action to write `isCompleted = true` back to the matching task row
+- reused `CheckAssignmentCompletion(...)` so assignment completion status stays in sync with task completion
+- removed the completed task from the dashboard list immediately after a successful update
+- added a confirmation alert before the completion update runs
+
+This gives the dashboard a lightweight task-management action instead of making it read-only.
+
+---
+
+### #DashboardAndSubjectsHelpFlow
+Added a small help/info entry point to explain the app structure more clearly:
+- added a help button in the dashboard header
+- added the same help/info pattern to the subjects screen
+- opened a compact modal that explains the app flow as `Subject -> Assignment -> Task -> Sprint`
+- added a clear summary block and a closing action inside the modal
+
+This gives new users a direct explanation of how the app model fits together without leaving the current screen.
+
+---
+
+### #HeaderAndStylingPolish
+Continued local UI cleanup around the dashboard and subjects screens:
+- aligned the header actions so help and logout use the same general layout pattern on both screens
+- converted the dashboard screen from local `StyleSheet` usage to NativeWind/Tailwind class-based styling
+- converted the subjects help/modal block away from `styles.*` references and into NativeWind classes
+- kept the visual structure local to the affected screens rather than introducing shared abstractions
+
+This keeps the dashboard and subjects screens stylistically closer to each other while staying within the current app structure.
+
+---
+
+### #ActiveSprintDashboardFix
+Fixed a rendering bug in the dashboard state logic:
+- the `Tasks with upcoming deadlines` section had been placed inside the `no active sprint` branch
+- when a sprint was active, the upcoming task section disappeared entirely
+- moved the upcoming task section out of that conditional so both the active sprint card and upcoming tasks render together
+
+This keeps the dashboard useful while a sprint is already running instead of hiding the rest of the user's near-term work.
 
 ---
 
@@ -127,6 +171,20 @@ The actual cause was not the subject join itself, but the fact that the list had
 
 ---
 
+### #UpcomingTasksVisibilityBug
+Another dashboard bug appeared after the active sprint card had been added.
+
+The issue was not in the Supabase query itself. The problem was that the upcoming-deadlines section was rendered only in the `no active sprint` branch of the dashboard conditional.
+
+This meant:
+- the active sprint card appeared correctly
+- the upcoming task data was still loaded
+- but the list was hidden whenever a sprint existed
+
+The fix was to move the upcoming task section outside that conditional so the dashboard can show both at once.
+
+---
+
 ## #CurrentState
 
 The timer/task flow now goes further than yesterday's integration work.
@@ -137,7 +195,10 @@ The app now supports:
 - adding tracked session time into `tasks.totalTimeInSeconds`
 - showing tracked task time on the task details screen
 - reopening the active sprint from the dashboard
-- showing upcoming deadline task cards on the dashboard when no sprint is active
+- showing upcoming deadline task cards even while a sprint is active
+- marking upcoming dashboard tasks as completed with a confirmation step
+- opening a help/info modal from both the dashboard and subjects headers
+- using NativeWind/Tailwind styling for the dashboard screen and the subjects help modal block
 
 At this point, the timer is no longer only integrated into the task route. It is now also contributing durable progress data back into the task model and exposing more of that state in surrounding screens.
 
@@ -173,7 +234,17 @@ npm run lint -- app/(tabs)/index.tsx
 exited successfully
 ```
 
-The summary above is based on today's working-tree changes plus the live runtime/database checks done while fixing the timer session flow.
+```text
+npx eslint app/(tabs)/index.tsx
+exited successfully
+```
+
+```text
+npx eslint app/(tabs)/subjects.tsx
+completed with one existing warning
+```
+
+The later dashboard/subjects polish work was verified with local static checks and code inspection. The summary above is based on today's working-tree changes plus the live runtime/database checks done while fixing the timer session flow.
 
 ---
 
@@ -192,6 +263,8 @@ Task details and dashboard files:
 ```text
 app/task/viewDetailsTask.tsx
 app/(tabs)/index.tsx
+app/(tabs)/subjects.tsx
+lib/progress.ts
 ```
 
 New note added:
@@ -206,4 +279,4 @@ notes/work-report-timer-2026-05-02.md
 
 Today's work turned the timer into something closer to a real task-tracking feature instead of only a screen-local countdown.
 
-The biggest progress was introducing sprint sessions as database-backed records, finalizing them into tracked task time, and then surfacing that state back into the app through task details and the dashboard. The timer is now contributing to persistent task progress, and the surrounding screens are beginning to reflect that progress in a useful way.
+The biggest progress was introducing sprint sessions as database-backed records, finalizing them into tracked task time, and then surfacing that state back into the app through task details and the dashboard. The later dashboard follow-up made that surrounding UI more useful by keeping upcoming tasks visible during active sprints, allowing quick task completion from the dashboard itself, and adding a lightweight in-app explanation of the subject/assignment/task/sprint model.
