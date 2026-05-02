@@ -436,75 +436,73 @@ export default function HomeScreen() {
             </Pressable>
           </View>
         ) : (
-          <>
-            <Text className="mx-1 my-1 text-left text-base font-normal">
-              No active sprint right now.
-            </Text>
-
-            <View className="mt-6 gap-3">
-              <Text className="text-lg font-bold text-[#1F2933]">
-                Tasks with upcoming deadlines
-              </Text>
-
-              {upcomingDeadlineTasks.length > 0 ? (
-                upcomingDeadlineTasks.map((task) => (
-                  <Pressable
-                    key={task.tId}
-                    className="gap-[6px] rounded-2xl border border-[#D5D9DF] bg-white p-4"
-                    onPress={() =>
-                      router.push({
-                        pathname: '/task/viewDetailsTask',
-                        params: { tId: task.tId },
-                      })
-                    }
-                  >
-                    <Text className="text-base font-bold text-[#1F2933]">{task.title}</Text>
-                    {task.description ? (
-                      <Text className="text-sm text-[#52606D]" numberOfLines={2}>
-                        {task.description}
-                      </Text>
-                    ) : null}
-                    <Text className="text-[13px] font-semibold text-[#7B8794]">
-                      {task.subjectTitle} • {task.assignmentTitle} • {formatDate(task.deadline)}
-                    </Text>
-
-                    <Pressable
-                      className={`mt-2 min-h-10 items-center justify-center rounded-xl px-4 ${
-                        completingTaskId === task.tId ? 'bg-[#9AA5B1]' : 'bg-[#323F4E]'
-                      }`}
-                      disabled={completingTaskId !== null}
-                      onPress={(event) => {
-                        event.stopPropagation();
-                        Alert.alert(
-                          'Complete task',
-                          'Mark this task as completed?',
-                          [
-                            {
-                              text: 'Cancel',
-                              style: 'cancel',
-                            },
-                            {
-                              text: 'Complete',
-                              onPress: () => {
-                                void handleTaskCompletion(task);
-                              },
-                            },
-                          ]
-                        );
-                      }}
-                    >
-                      <Text className="text-sm font-bold text-white">
-                        {completingTaskId === task.tId ? 'Completing...' : 'Mark as completed'}
-                      </Text>
-                    </Pressable>
-                  </Pressable>
-                ))
-              ) : (
-                <Text className="text-sm text-[#7B8794]">No upcoming task deadlines.</Text>
-              )}
-            </View>
-          </>
+          <Text className="mx-1 my-1 text-left text-base font-normal">
+            No active sprint right now.
+          </Text>
         )}
+
+        <View className="mt-6 gap-3">
+          <Text className="text-lg font-bold text-[#1F2933]">
+            Tasks with upcoming deadlines
+          </Text>
+
+          {upcomingDeadlineTasks.length > 0 ? (
+            upcomingDeadlineTasks.map((task) => (
+              <Pressable
+                key={task.tId}
+                className="gap-[6px] rounded-2xl border border-[#D5D9DF] bg-white p-4"
+                onPress={() =>
+                  router.push({
+                    pathname: '/task/viewDetailsTask',
+                    params: { tId: task.tId },
+                  })
+                }
+              >
+                <Text className="text-base font-bold text-[#1F2933]">{task.title}</Text>
+                {task.description ? (
+                  <Text className="text-sm text-[#52606D]" numberOfLines={2}>
+                    {task.description}
+                  </Text>
+                ) : null}
+                <Text className="text-[13px] font-semibold text-[#7B8794]">
+                  {task.subjectTitle} • {task.assignmentTitle} • {formatDate(task.deadline)}
+                </Text>
+
+                <Pressable
+                  className={`mt-2 min-h-10 items-center justify-center rounded-xl px-4 ${
+                    completingTaskId === task.tId ? 'bg-[#9AA5B1]' : 'bg-[#323F4E]'
+                  }`}
+                  disabled={completingTaskId !== null}
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    Alert.alert(
+                      'Complete task',
+                      'Mark this task as completed?',
+                      [
+                        {
+                          text: 'Cancel',
+                          style: 'cancel',
+                        },
+                        {
+                          text: 'Complete',
+                          onPress: () => {
+                            void handleTaskCompletion(task);
+                          },
+                        },
+                      ]
+                    );
+                  }}
+                >
+                  <Text className="text-sm font-bold text-white">
+                    {completingTaskId === task.tId ? 'Completing...' : 'Mark as completed'}
+                  </Text>
+                </Pressable>
+              </Pressable>
+            ))
+          ) : (
+            <Text className="text-sm text-[#7B8794]">No upcoming task deadlines.</Text>
+          )}
+        </View>
       </View>
     </View>
   );
