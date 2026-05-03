@@ -20,12 +20,14 @@ import {
 } from 'react-native';
 
 export default function UpsertAssignment() {
-  const { aId, sId: routeSId } = useLocalSearchParams<{
+  const { aId, sId: routeSId, flow } = useLocalSearchParams<{
     aId?: string;
     sId?: string;
+    flow?: string;
   }>();
 
   const isEditMode = Boolean(aId);
+  const isSetupFlow = flow === 'setup';
 
   const [title, SetTitle] = useState('');
   const [description, SetDescription] = useState('');
@@ -195,6 +197,17 @@ export default function UpsertAssignment() {
 
     SetIsSaving(false);
 
+    if (!isEditMode && isSetupFlow) {
+      router.replace({
+        pathname: '/task/upsertTask',
+        params: {
+          aId: savedAssignment.aId,
+          flow: 'setup',
+        },
+      });
+      return;
+    }
+
     Alert.alert(
       isEditMode
         ? 'Assignment successfully updated!'
@@ -258,7 +271,9 @@ export default function UpsertAssignment() {
                 <Text className={labelClassName}>Title</Text>
                 <TextInput
                   className={inputClassName}
-                  placeholder="Enter assignment title"
+                  placeholder={
+                    isSetupFlow ? 'e.g. Weekly problem set 3' : 'Enter assignment title'
+                  }
                   placeholderTextColor="#9CA3AF"
                   value={title}
                   onChangeText={SetTitle}
@@ -270,7 +285,11 @@ export default function UpsertAssignment() {
                 <Text className={labelClassName}>Description</Text>
                 <TextInput
                   className={`${inputClassName} min-h-28`}
-                  placeholder="Add a short description"
+                  placeholder={
+                    isSetupFlow
+                      ? 'e.g. Finish the next exercise set before Friday'
+                      : 'Add a short description'
+                  }
                   placeholderTextColor="#9CA3AF"
                   value={description}
                   onChangeText={SetDescription}
@@ -283,7 +302,7 @@ export default function UpsertAssignment() {
                 <Text className={labelClassName}>Deadline</Text>
                 <TextInput
                   className={inputClassName}
-                  placeholder="YYYY-MM-DD"
+                  placeholder={isSetupFlow ? 'e.g. 2026-05-14' : 'YYYY-MM-DD'}
                   placeholderTextColor="#9CA3AF"
                   value={deadline}
                   onChangeText={SetDeadline}

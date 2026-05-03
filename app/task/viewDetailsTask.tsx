@@ -1,4 +1,4 @@
-import { GetActiveSprint, RemoveActiveSprint } from '@/lib/asyncStorage';
+import { GetActiveSession, RemoveActiveSession } from '@/lib/asyncStorage';
 import { formatDateTime } from '@/lib/date';
 import { CheckAssignmentCompletion } from '@/lib/progress';
 import { getSubjectColorSet, type SubjectColor } from '@/lib/subjectColors';
@@ -33,6 +33,7 @@ const { tId } = useLocalSearchParams<{ tId: string }>();
 
 const [task, SetTask] = useState<Task | null>(null);
 const [session, SetSession] = useState<Session | null>(null);
+const [completedFocusSessions, setCompletedFocusSessions] = useState(0);
 const [contextMeta, setContextMeta] = useState({
   subjectTitle: 'No Subject',
   assignmentTitle: 'No Assignment',
@@ -49,7 +50,24 @@ useEffect(() => {
   return () => sub.subscription.unsubscribe();
 }, []);
 
-const GetTask = async (taskId: string) => {
+const loadTaskStudyActivity = useCallback(async (taskId: string, userId: string) => {
+  const { count, error } = await supabase
+    .from('sprint_sessions')
+    .select('sessionId', { count: 'exact', head: true })
+    .eq('taskId', taskId)
+    .eq('userId', userId)
+    .eq('sessionType', 'focus')
+    .eq('status', 'completed');
+
+  if (error) {
+    setCompletedFocusSessions(0);
+    return;
+  }
+
+  setCompletedFocusSessions(count ?? 0);
+}, []);
+
+const GetTask = useCallback(async (taskId: string) => {
   const { data, error } = await supabase
     .from('tasks')
     .select('*')
@@ -62,6 +80,7 @@ const GetTask = async (taskId: string) => {
   }
 
   SetTask(data);
+  await loadTaskStudyActivity(taskId, data.uId);
 
   if (data.aId) {
     const { data: assignmentData, error: assignmentError } = await supabase
@@ -102,20 +121,20 @@ const GetTask = async (taskId: string) => {
       });
     }
   }
-};
+}, [loadTaskStudyActivity]);
 
 useFocusEffect(
   useCallback(() => {
     if (session && tId) {
       GetTask(tId);
     }
-  }, [session, tId])
+  }, [GetTask, session, tId])
 );
 
 const handleSprintStart = async () => {
-  const activeSprint = await GetActiveSprint();
+  const activeSession = await GetActiveSession();
 
-  if (!activeSprint) {
+  if (!activeSession) {
     router.push({
       pathname: '/task/timer',
       params: { tId: task?.tId},
@@ -125,10 +144,10 @@ const handleSprintStart = async () => {
 
 
   
-  const secondsLeft = Math.ceil((activeSprint.endTime - Date.now()) / 1000)
+  const secondsLeft = Math.ceil((activeSession.endTime - Date.now()) / 1000)
 
   if (secondsLeft <= 0) {
-    await RemoveActiveSprint();
+    await RemoveActiveSession();
     router.push({
       pathname: '/task/timer',
       params: { tId: task?.tId}
@@ -137,23 +156,23 @@ const handleSprintStart = async () => {
     }
     
 
-  if (activeSprint!.taskId === task?.tId) {
+  if (activeSession.taskId === task?.tId) {
     router.push({
     pathname: '/task/timer',
-    params: { tId: activeSprint!.taskId}});
+    params: { tId: activeSession.taskId ?? undefined }});
     return;
     }
 
     Alert.alert(
-      'Active sprint in progress', 
-      'Starting a new sprint will end the current active sprint', 
+      'Active session in progress', 
+      'Starting a new sprint will end the current active session', 
       [
         { text: 'Cancel', style: 'cancel',  },
         {
           text: 'Start new sprint',
           style: 'destructive',
           onPress: async () => {
-            await RemoveActiveSprint();
+            await RemoveActiveSession();
             router.push({
               pathname: '/task/timer',
               params: { tId: task?.tId },
@@ -332,13 +351,45 @@ return (
                 {contextMeta.assignmentTitle}
               </Text>
             </View>
+
+            <View className="mr-2 mb-2 rounded-full bg-app-subtle px-3 py-1">
+              <Text className="text-xs font-semibold text-text-secondary">
+                Status: {task.isCompleted ? 'Completed' : 'Not completed'}
+              </Text>
+            </View>
+          </View>
+
+          <View className="mt-5 rounded-2xl bg-app-subtle p-4">
+            <Text className="text-sm font-semibold text-text-secondary">
+              Study activity
+            </Text>
+            <Text className="mt-1 text-xs leading-5 text-text-muted">
+              This tracks focused work on the task separately from whether the task is marked completed.
+            </Text>
+
+            <View className="mt-4 flex-row gap-3">
+              <View className="flex-1 rounded-2xl bg-app-surface px-4 py-3">
+                <Text className="text-xs font-semibold uppercase tracking-[0.6px] text-text-muted">
+                  Focus time
+                </Text>
+                <Text className="mt-1 text-lg font-bold text-text-main">
+                  {formatTrackedTime(task.totalTimeInSeconds ?? 0)}
+                </Text>
+              </View>
+
+              <View className="flex-1 rounded-2xl bg-app-surface px-4 py-3">
+                <Text className="text-xs font-semibold uppercase tracking-[0.6px] text-text-muted">
+                  Completed sessions
+                </Text>
+                <Text className="mt-1 text-lg font-bold text-text-main">
+                  {completedFocusSessions}
+                </Text>
+              </View>
+            </View>
           </View>
 
           <Text className="mt-2 text-sm text-text-muted">
             Last changed: {formatDateTime(task.lastChanged)}
-          </Text>
-          <Text className="mt-1 text-sm text-text-muted">
-            Time spent: {formatTrackedTime(task.totalTimeInSeconds ?? 0)}
           </Text>
         </View>
       </View>

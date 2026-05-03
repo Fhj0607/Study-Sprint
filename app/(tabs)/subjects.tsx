@@ -51,7 +51,7 @@ export default function Subjects() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  const GetSubjects = async () => {
+  const GetSubjects = useCallback(async () => {
     if (!session?.user.id) return;
 
     const { data, error } = await supabase
@@ -66,14 +66,14 @@ export default function Subjects() {
     }
 
     SetSubjects((data as Subject[]) ?? []);
-  };
+  }, [session?.user.id]);
 
   useFocusEffect(
     useCallback(() => {
       if (session) {
-        GetSubjects();
+        void GetSubjects();
       }
-    }, [session])
+    }, [GetSubjects, session])
   );
 
   return (
@@ -212,12 +212,22 @@ export default function Subjects() {
 
         {subjects.length === 0 ? (
           <View className="rounded-3xl border border-app-border bg-app-surface p-5">
-            <Text className="text-center text-base font-semibold text-text-secondary">
+            <Text className="text-center text-xl font-bold text-text-main">
               No subjects yet
             </Text>
-            <Text className="mt-1 text-center text-sm text-text-muted">
-              Create your first subject to get started.
+            <Text className="mt-2 text-center text-sm leading-5 text-text-secondary">
+              Start with one subject so the rest of your study path has a clear
+              place to live.
             </Text>
+
+            <Pressable
+              className="mt-5 h-14 items-center justify-center rounded-2xl bg-accent"
+              onPress={() => router.push('/setup')}
+            >
+              <Text className="text-base font-bold text-text-inverse">
+                Start Guided Setup
+              </Text>
+            </Pressable>
           </View>
         ) : (
           <View>
@@ -292,14 +302,16 @@ export default function Subjects() {
           </View>
         )}
 
-        <Pressable
-          className="mt-2 h-14 items-center justify-center rounded-2xl bg-accent"
-          onPress={() => router.push('/subject/upsertSubject')}
-        >
-          <Text className="text-base font-bold text-text-inverse">
-            Create Subject
-          </Text>
-        </Pressable>
+        {subjects.length > 0 ? (
+          <Pressable
+            className="mt-2 h-14 items-center justify-center rounded-2xl bg-accent"
+            onPress={() => router.push('/subject/upsertSubject')}
+          >
+            <Text className="text-base font-bold text-text-inverse">
+              Create Subject
+            </Text>
+          </Pressable>
+        ) : null}
       </ScrollView>
     </View>
   );

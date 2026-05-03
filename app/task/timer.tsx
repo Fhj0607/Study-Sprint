@@ -1,12 +1,12 @@
 import {
-  GetActiveSprint,
-  RemoveActiveSprint,
-  SaveActiveSprint,
+  GetActiveSession,
+  RemoveActiveSession,
+  SaveActiveSession,
 } from '@/lib/asyncStorage';
 import { supabase } from '@/lib/supabase';
-import type { Task } from '@/lib/types';
+import type { SessionType, Task } from '@/lib/types';
 import * as Haptics from 'expo-haptics';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import * as React from 'react';
 import {
   Alert,
@@ -48,6 +48,12 @@ const HOLD_TO_CANCEL_MS = 2000;
 const CANCEL_ANIMATION_DELAY_MS = 250;
 const BUTTON_PRESS_IN_MS = 80;
 const BUTTON_PRESS_OUT_MS = 140;
+const SHORT_BREAK_DURATION_MINUTES = 5;
+
+type PostSessionPrompt = {
+  completedSessionType: SessionType;
+  returnTaskId: string | null;
+};
 
 function formatTime(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60);
@@ -69,6 +75,23 @@ function getSessionId(sessionData: unknown) {
   return maybeSession.sessionId ?? maybeSession.sessionid ?? null;
 }
 
+function getSessionLabel(sessionType: SessionType) {
+  switch (sessionType) {
+    case 'short_break':
+      return 'Short Break';
+    case 'long_break':
+      return 'Long Break';
+    default:
+      return 'Sprint';
+  }
+}
+
+type StartSessionInput = {
+  sessionType: SessionType;
+  taskId: string | null;
+  durationSeconds: number;
+};
+
 export default function TimerScreen() {
   const [containerHeight, setContainerHeight] = React.useState(0);
   const [duration, setDuration] = React.useState(TIMER_OPTIONS[0]);
@@ -76,6 +99,8 @@ export default function TimerScreen() {
   const [timerOverlayVisible, setTimerOverlayVisible] = React.useState(false);
   const [timeRemaining, setTimeRemaining] = React.useState(0);
   const [task, setTask] = React.useState<Task | null>(null);
+  const [currentSessionType, setCurrentSessionType] = React.useState<SessionType>('focus');
+  const [postSessionPrompt, setPostSessionPrompt] = React.useState<PostSessionPrompt | null>(null);
 
   const scrollX = React.useRef(new Animated.Value(0)).current;
   const timerAnimation = React.useRef(new Animated.Value(0)).current;
@@ -100,9 +125,44 @@ export default function TimerScreen() {
   const cancelHoldIdRef = React.useRef(0);
   const cancelHoldStartedAtRef = React.useRef(0);
 
-  const { tId } = useLocalSearchParams<{ tId?: string}>();
+  const { tId, sessionType: sessionTypeParam, durationMinutes, durationSeconds, returnTaskId } = useLocalSearchParams<{
+    tId?: string;
+    sessionType?: SessionType;
+    durationMinutes?: string;
+    durationSeconds?: string;
+    returnTaskId?: string;
+  }>();
   const timerOverlayHeight = Math.max(containerHeight, 1);
   const timerOverlayOffscreenY = timerOverlayHeight + 1000;
+  const selectedSessionType: SessionType = sessionTypeParam ?? 'focus';
+  const showDurationPicker =
+    selectedSessionType === 'focus' && durationMinutes == null && durationSeconds == null;
+  const selectedDurationMinutes = React.useMemo(() => {
+    if (!durationMinutes) {
+      return null;
+    }
+
+    const parsedDuration = Number(durationMinutes);
+
+    if (!Number.isFinite(parsedDuration) || parsedDuration <= 0) {
+      return null;
+    }
+
+    return parsedDuration;
+  }, [durationMinutes]);
+  const selectedDurationSeconds = React.useMemo(() => {
+    if (!durationSeconds) {
+      return null;
+    }
+
+    const parsedDuration = Number(durationSeconds);
+
+    if (!Number.isFinite(parsedDuration) || parsedDuration <= 0) {
+      return null;
+    }
+
+    return parsedDuration;
+  }, [durationSeconds]);
 
   React.useEffect(() => {
     if (containerHeight > 0 && !timerIsRunning) {
@@ -190,16 +250,16 @@ export default function TimerScreen() {
   });
 
   const finalizeSprintSession = React.useCallback(async (finalStatus: 'completed' | 'cancelled' | 'expired') => {
-    const activeSprint = await GetActiveSprint();
+    const activeSession = await GetActiveSession();
 
-    if (!activeSprint) {
+    if (!activeSession) {
       return;
     }
 
-    await RemoveActiveSprint();
+    await RemoveActiveSession();
 
     const { error } = await supabase.rpc('finalize_sprint_session', {
-      p_session_id: activeSprint.sessionId,
+      p_session_id: activeSession.sessionId,
       p_final_status: finalStatus,
       p_ended_at: new Date().toISOString(),
     });
@@ -271,11 +331,16 @@ export default function TimerScreen() {
     cancelOverlayAnimation.setValue(0);
     setTimerOverlayVisible(false);
     setTimeRemaining(0);
+    setCurrentSessionType(selectedSessionType);
     setIsRunning(false);
-  }, [cancelOverlayAnimation, timerAnimation, timerOverlayOffscreenY]);
+  }, [cancelOverlayAnimation, selectedSessionType, timerAnimation, timerOverlayOffscreenY]);
 
   const finishTimer = React.useCallback(() => {
     clearCountdownInterval();
+    const completedSessionType = currentSessionType;
+    const completedReturnTaskId =
+      completedSessionType === 'focus' ? (tId ?? null) : (returnTaskId ?? null);
+
     void finalizeSprintSession('completed');
 
     Animated.parallel([
@@ -308,12 +373,11 @@ export default function TimerScreen() {
         }),
       ]).start(() => {
         setIsRunning(false);
-        /* TODO
-          Implement store and send of ellapsed time value in seconds to DB
-          for total time spent statistic
-        */
-
         resetSessionValues();
+        setPostSessionPrompt({
+          completedSessionType,
+          returnTaskId: completedReturnTaskId,
+        });
       });
     });
   }, [
@@ -321,10 +385,13 @@ export default function TimerScreen() {
     cancelButtonAnimation,
     clearCountdownInterval,
     countdownAnimation,
+    currentSessionType,
     finalizeSprintSession,
     focusModeAnimation,
     resetSessionValues,
     taskDetailsAnimation,
+    returnTaskId,
+    tId,
   ]);
 
   // This picks up the timer overlay animation from the current Y position and
@@ -416,31 +483,40 @@ export default function TimerScreen() {
   );
 
   React.useEffect(() => {
-    if (!tId || timerIsRunning || containerHeight === 0) {
+    if (timerIsRunning || containerHeight === 0) {
       return;
     }
 
     const restoreSprint = async () => {
-      const activeSprint = await GetActiveSprint();
+      const activeSession = await GetActiveSession();
 
-      if (!activeSprint || activeSprint.taskId !== tId) {
+      if (!activeSession) {
         return;
       }
 
-      const remainingMs = activeSprint.endTime - Date.now();
+      if (activeSession.sessionType === 'focus' && activeSession.taskId !== tId) {
+        return;
+      }
+
+      if (activeSession.sessionType !== 'focus' && selectedSessionType !== activeSession.sessionType) {
+        return;
+      }
+
+      const remainingMs = activeSession.endTime - Date.now();
 
       if (remainingMs <= 0) {
         await finalizeSprintSession('expired');
         return;
       }
 
-      const totalMs = activeSprint.durationSeconds * 1000;
+      const totalMs = activeSession.durationSeconds * 1000;
       const elapsedMs = totalMs - remainingMs;
       const elapsedRatio = Math.max(0, Math.min(elapsedMs / totalMs, 1));
       const restoredY = timerOverlayHeight * elapsedRatio;
 
       setIsRunning(true);
       setTimerOverlayVisible(true);
+      setCurrentSessionType(activeSession.sessionType);
       sessionStartedAtRef.current = Date.now() - elapsedMs;
       sessionDurationMsRef.current = totalMs;
 
@@ -451,7 +527,7 @@ export default function TimerScreen() {
       taskDetailsAnimation.setValue(1);
       cancelOverlayAnimation.setValue(0);
 
-      startCountdown(activeSprint.endTime);
+      startCountdown(activeSession.endTime);
       startProgressAnimation(restoredY);
     };
 
@@ -467,29 +543,39 @@ export default function TimerScreen() {
     startCountdown,
     startProgressAnimation,
     taskDetailsAnimation,
+    selectedSessionType,
     tId,
     timerOverlayHeight,
     timerIsRunning,
   ]);
 
-  const startTimerSession = React.useCallback(async () => {
-    if (!tId || timerIsRunning || containerHeight === 0) {
+  const startSession = React.useCallback(async ({
+    sessionType,
+    taskId,
+    durationSeconds,
+  }: StartSessionInput) => {
+    if (timerIsRunning || containerHeight === 0) {
       return;
     }
 
-    const totalSeconds = duration * TIMER_UNIT_IN_SECONDS;
-    const endTime = Date.now() + totalSeconds * 1000;
+    if (sessionType === 'focus' && !taskId) {
+      Alert.alert('Could not start session', 'Focus sessions must be linked to a task.');
+      return;
+    }
+
+    const endTime = Date.now() + durationSeconds * 1000;
     const { data: userData, error: userError } = await supabase.auth.getUser();
 
     if (userError || !userData.user?.id) {
-      Alert.alert('Could not start sprint', 'Missing signed-in user for sprint session.');
+      Alert.alert('Could not start session', 'Missing signed-in user.');
       return;
     }
 
     const { data: sessionData, error: sessionError } = await supabase.rpc('start_sprint_session', {
-      p_task_id: tId,
+      p_task_id: taskId,
       p_user_id: userData.user.id,
-      p_planned_duration: totalSeconds,
+      p_session_type: sessionType,
+      p_planned_duration: durationSeconds,
       p_started_at: new Date().toISOString(),
     });
 
@@ -497,8 +583,8 @@ export default function TimerScreen() {
 
     if (sessionError || !sessionId) {
       Alert.alert(
-        'Could not start sprint',
-        sessionError?.message ?? 'Sprint session could not be created.'
+        'Could not start session',
+        sessionError?.message ?? 'Session could not be created.'
       );
       return;
     }
@@ -506,18 +592,20 @@ export default function TimerScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setIsRunning(true);
     setTimerOverlayVisible(true);
+    setCurrentSessionType(sessionType);
 
     taskDetailsAnimation.setValue(0);
     countdownAnimation.setValue(0);
     cancelOverlayAnimation.setValue(0);
 
     sessionStartedAtRef.current = Date.now();
-    sessionDurationMsRef.current = totalSeconds * 1000;
+    sessionDurationMsRef.current = durationSeconds * 1000;
 
-    void SaveActiveSprint({
+    void SaveActiveSession({
       sessionId,
-      taskId: tId,
-      durationSeconds: totalSeconds,
+      sessionType,
+      taskId,
+      durationSeconds,
       endTime,
     });
 
@@ -531,9 +619,53 @@ export default function TimerScreen() {
     runStartSequence,
     startCountdown,
     taskDetailsAnimation,
-    tId,
     timerIsRunning,
   ]);
+
+  const startTimerSession = React.useCallback(async () => {
+    if (selectedSessionType === 'focus' && !tId) {
+      return;
+    }
+
+    const totalSeconds =
+      selectedDurationSeconds ?? (selectedDurationMinutes ?? duration) * TIMER_UNIT_IN_SECONDS;
+
+    await startSession({
+      sessionType: selectedSessionType,
+      taskId: selectedSessionType === 'focus' ? (tId ?? null) : null,
+      durationSeconds: totalSeconds,
+    });
+  }, [duration, selectedDurationMinutes, selectedDurationSeconds, selectedSessionType, startSession, tId]);
+
+  const handleStartShortBreak = React.useCallback(() => {
+    setPostSessionPrompt(null);
+    router.replace({
+      pathname: '/task/timer',
+      params: {
+        sessionType: 'short_break',
+        durationMinutes: String(SHORT_BREAK_DURATION_MINUTES),
+        returnTaskId: tId ?? undefined,
+      },
+    });
+  }, [tId]);
+
+  const handleContinueSameTask = React.useCallback(() => {
+    if (!postSessionPrompt?.returnTaskId) {
+      router.replace('/');
+      return;
+    }
+
+    setPostSessionPrompt(null);
+    router.replace({
+      pathname: '/task/timer',
+      params: { tId: postSessionPrompt.returnTaskId },
+    });
+  }, [postSessionPrompt]);
+
+  const handleBackToDashboard = React.useCallback(() => {
+    setPostSessionPrompt(null);
+    router.replace('/');
+  }, []);
 
   const cancelTimer = React.useCallback(() => {
     if (!timerIsRunning) {
@@ -745,7 +877,7 @@ export default function TimerScreen() {
       
       <Stack.Screen 
       options={{
-        title: timerIsRunning ? '' : 'Sprint duration',
+        title: timerIsRunning ? '' : `${getSessionLabel(selectedSessionType)} duration`,
         headerTransparent: true,
         headerTintColor: colors.text,
         headerTitleAlign: 'center',
@@ -790,7 +922,9 @@ export default function TimerScreen() {
             ]}
           >
             <Text className="text-text-main text-xl">Start</Text>
-            <Text className="text-text-main text-xl">Sprint</Text>
+            {selectedSessionType === 'focus' ? (
+              <Text className="text-text-main text-xl">Sprint</Text>
+            ) : null}
           </Animated.View>
         </TouchableOpacity>
       </Animated.View>
@@ -814,7 +948,7 @@ export default function TimerScreen() {
               },
             ]}
           >
-            <Text className="text-text-main text-xl">Hold to end sprint</Text>
+            <Text className="text-text-main text-xl">Hold to end session</Text>
           </Animated.View>
         </TouchableOpacity>
       </Animated.View>
@@ -836,32 +970,45 @@ export default function TimerScreen() {
         <Text style={styles.countdownText}>{formatTime(timeRemaining)}</Text>
       </Animated.View>
 
-      <View
-        style={[
-          styles.timerPickerWrapper,
-          {
-            top: containerHeight / 3,
-          },
-        ]}
-      >
-        <Animated.FlatList
-          data={TIMER_OPTIONS}
-          scrollEnabled={!timerIsRunning}
-          keyExtractor={(item) => item.toString()}
-          horizontal
-          bounces={false}
-          onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
-            useNativeDriver: true,
-          })}
-          showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={handleTimerPickerMomentumEnd}
-          snapToInterval={ITEM_SIZE}
-          decelerationRate="fast"
-          style={styles.timerPickerList}
-          contentContainerStyle={styles.timerPickerContent}
-          renderItem={renderTimerItem}
-        />
-      </View>
+      {!timerIsRunning && showDurationPicker ? (
+        <View
+          style={[
+            styles.timerPickerWrapper,
+            {
+              top: containerHeight / 3,
+            },
+          ]}
+        >
+          <Animated.FlatList
+            data={TIMER_OPTIONS}
+            scrollEnabled={!timerIsRunning}
+            keyExtractor={(item) => item.toString()}
+            horizontal
+            bounces={false}
+            onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
+              useNativeDriver: true,
+            })}
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={handleTimerPickerMomentumEnd}
+            snapToInterval={ITEM_SIZE}
+            decelerationRate="fast"
+            style={styles.timerPickerList}
+            contentContainerStyle={styles.timerPickerContent}
+            renderItem={renderTimerItem}
+          />
+        </View>
+      ) : !timerIsRunning ? (
+        <View style={styles.fixedDurationBlock}>
+          <Text style={styles.fixedDurationLabel}>
+            {selectedDurationSeconds != null
+              ? `${selectedDurationSeconds} sec`
+              : `${selectedDurationMinutes ?? SHORT_BREAK_DURATION_MINUTES} min`}
+          </Text>
+          <Text style={styles.fixedDurationDescription}>
+            This session uses a fixed duration so you can move straight into the next step.
+          </Text>
+        </View>
+      ) : null}
 
       <Animated.View
         pointerEvents="none"
@@ -873,9 +1020,53 @@ export default function TimerScreen() {
           },
         ]}
       >
-        <Text style={styles.taskName}>{task?.title ?? 'Sprint'}</Text>
-        <Text style={styles.taskDescription}>{task?.description || 'Focus on this task until the timer ends.'}</Text>
+        <Text style={styles.taskName}>
+          {currentSessionType === 'focus' ? task?.title ?? 'Sprint' : getSessionLabel(currentSessionType)}
+        </Text>
+        <Text style={styles.taskDescription}>
+          {currentSessionType === 'focus'
+            ? task?.description || 'Focus on this task until the timer ends.'
+            : 'Use this timer as a real break before starting the next focus session.'}
+        </Text>
       </Animated.View>
+
+      {postSessionPrompt ? (
+        <View style={styles.postSessionOverlay}>
+          <View style={styles.postSessionCard}>
+            <Text style={styles.postSessionEyebrow}>Session complete</Text>
+            <Text style={styles.postSessionTitle}>
+              {postSessionPrompt.completedSessionType === 'focus'
+                ? 'What do you want to do next?'
+                : 'Break finished'}
+            </Text>
+            <Text style={styles.postSessionBody}>
+              {postSessionPrompt.completedSessionType === 'focus'
+                ? 'Start a short break now or skip it and return to your dashboard.'
+                : 'Jump back into the same task or head back to the dashboard.'}
+            </Text>
+
+            {postSessionPrompt.completedSessionType === 'focus' ? (
+              <>
+                <TouchableOpacity onPress={handleStartShortBreak} style={styles.postSessionPrimaryButton}>
+                  <Text style={styles.postSessionPrimaryButtonText}>Start short break</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleBackToDashboard} style={styles.postSessionSecondaryButton}>
+                  <Text style={styles.postSessionSecondaryButtonText}>Skip break</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <TouchableOpacity onPress={handleContinueSameTask} style={styles.postSessionPrimaryButton}>
+                  <Text style={styles.postSessionPrimaryButtonText}>Continue with same task</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleBackToDashboard} style={styles.postSessionSecondaryButton}>
+                  <Text style={styles.postSessionSecondaryButtonText}>Back to dashboard</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -914,6 +1105,27 @@ const styles = StyleSheet.create({
   },
   timerPickerList: {
     flexGrow: 0,
+  },
+  fixedDurationBlock: {
+    position: 'absolute',
+    top: height * 0.28,
+    left: 32,
+    right: 32,
+    alignItems: 'center',
+  },
+  fixedDurationLabel: {
+    color: colors.text,
+    fontSize: 56,
+    fontFamily: 'Menlo',
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  fixedDurationDescription: {
+    color: colors.text,
+    fontSize: 18,
+    lineHeight: 26,
+    marginTop: 16,
+    textAlign: 'center',
   },
   timerPickerContent: {
     paddingHorizontal: ITEM_SPACING,
@@ -983,5 +1195,67 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: 'center',
+  },
+  postSessionOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(20, 26, 34, 0.94)',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    zIndex: 10,
+  },
+  postSessionCard: {
+    borderRadius: 28,
+    backgroundColor: '#F7F4EA',
+    paddingHorizontal: 24,
+    paddingVertical: 28,
+  },
+  postSessionEyebrow: {
+    color: '#7A6F5A',
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  postSessionTitle: {
+    color: '#323F4E',
+    fontSize: 30,
+    fontWeight: '800',
+    marginTop: 10,
+  },
+  postSessionBody: {
+    color: '#52606D',
+    fontSize: 17,
+    lineHeight: 25,
+    marginTop: 12,
+    marginBottom: 24,
+  },
+  postSessionPrimaryButton: {
+    minHeight: 54,
+    borderRadius: 18,
+    backgroundColor: '#323F4E',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  postSessionPrimaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  postSessionSecondaryButton: {
+    minHeight: 54,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#C2B8A3',
+    backgroundColor: '#EFE7D8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    marginTop: 12,
+  },
+  postSessionSecondaryButtonText: {
+    color: '#323F4E',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

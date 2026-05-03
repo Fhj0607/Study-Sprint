@@ -1,5 +1,7 @@
 import type { SubjectColor } from '@/lib/subjectColors';
 
+export type SessionType = 'focus' | 'short_break' | 'long_break';
+
 export type Task = {
   tId: string;
   title: string;

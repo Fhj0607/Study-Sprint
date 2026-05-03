@@ -20,8 +20,9 @@ import {
 
 
 export default function UpsertSubject() {
-    const { sId } = useLocalSearchParams<{ sId?: string }>();
+    const { sId, flow } = useLocalSearchParams<{ sId?: string; flow?: string }>();
     const isEditMode = Boolean(sId);
+    const isSetupFlow = flow === 'setup';
 
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
@@ -88,7 +89,7 @@ export default function UpsertSubject() {
 
         const result = isEditMode && sId
             ? await supabase.from('subjects').update(payload).eq('sId', sId)
-            : await supabase.from('subjects').insert(payload);
+            : await supabase.from('subjects').insert(payload).select().single();
         
         setIsSaving(false);
 
@@ -98,6 +99,17 @@ export default function UpsertSubject() {
                 ? 'Subject could not be updated, please try again' 
                 : 'Subject could not be created, please try again'
             );
+            return;
+        }
+
+        if (!isEditMode && isSetupFlow && result.data?.sId) {
+            router.replace({
+                pathname: '/assignment/upsertAssignment',
+                params: {
+                    sId: result.data.sId,
+                    flow: 'setup',
+                },
+            });
             return;
         }
 
@@ -154,7 +166,7 @@ export default function UpsertSubject() {
                             </Text>
                             <Text className="mt-2 text-base leading-6 text-text-secondary">
                                 {isEditMode? ' Update this subject and keep your study structure organized.'
-                                : 'Add a subject to organize your assignments and studyt tasks.'}
+                                : 'Add a subject to organize your assignments and study tasks.'}
                             </Text>
                         </View>
 
@@ -162,7 +174,7 @@ export default function UpsertSubject() {
                             <View className="mb-5">
                                 <Text className={labelClassName}>Title</Text>
                                 <TextInput className={inputClassName}
-                                    placeholder="Enter subject title"
+                                    placeholder={isSetupFlow ? 'e.g. Algorithms' : 'Enter subject title'}
                                     placeholderTextColor="#9CA3AF"
                                     value={title}
                                     onChangeText={setTitle}
@@ -174,7 +186,7 @@ export default function UpsertSubject() {
                                 <Text className={labelClassName}>Description</Text>
                                 <TextInput 
                                     className={`${inputClassName} min-h-28`}
-                                    placeholder="Add a short description"
+                                    placeholder={isSetupFlow ? 'e.g. Lectures, problem sets, and exam prep' : 'Add a short description'}
                                     placeholderTextColor="#9CA3AF"
                                     value={description}
                                     onChangeText={setDescription}

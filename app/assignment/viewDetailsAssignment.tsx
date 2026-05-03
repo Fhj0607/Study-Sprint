@@ -295,7 +295,7 @@ export default function ViewDetailsAssignment() {
                  <View className="mt-5">
                   <View className="mb-2 flex-row items-center justify-between">
                     <Text className="text-sm font-semibold text-text-secondary">
-                      Task Progress
+                      Tasks completed
                     </Text>
 
                     <Text className="text-sm font-bold text-text-main">
@@ -317,6 +317,10 @@ export default function ViewDetailsAssignment() {
                     {remainingTasks === 0
                       ? 'All tasks complete'
                       : `${remainingTasks} task${remainingTasks === 1 ? '' : 's'} remaining`}
+                  </Text>
+
+                  <Text className="mt-1 text-xs text-text-muted">
+                    Based only on completed tasks in this assignment.
                   </Text>
                 </View>
 
@@ -463,7 +467,9 @@ export default function ViewDetailsAssignment() {
                 {section.emptyMessage}
               </Text>
               <Text className="mt-1 text-center text-sm text-text-muted">
-                Tasks for this assignment will show up here.
+                {tasks.length === 0
+                  ? 'Create the first task so this assignment turns into one clear next action.'
+                  : 'Tasks for this assignment will show up here.'}
               </Text>
             </View>
           ) : (

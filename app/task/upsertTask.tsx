@@ -19,12 +19,14 @@ import {
 } from 'react-native';
 
 export default function UpsertTask() {
-  const { tId, aId: routeAId } = useLocalSearchParams<{
+  const { tId, aId: routeAId, flow } = useLocalSearchParams<{
     tId?: string;
     aId?: string;
+    flow?: string;
   }>();
 
   const isEditMode = Boolean(tId);
+  const isSetupFlow = flow === 'setup';
 
   const [title, SetTitle] = useState('');
   const [description, SetDescription] = useState('');
@@ -100,7 +102,7 @@ export default function UpsertTask() {
     const result =
       isEditMode && tId
         ? await supabase.from('tasks').update(payload).eq('tId', tId)
-        : await supabase.from('tasks').insert(payload);
+        : await supabase.from('tasks').insert(payload).select().single();
 
     if (result.error) {
       SetIsSaving(false);
@@ -121,6 +123,14 @@ export default function UpsertTask() {
     }
 
     SetIsSaving(false);
+
+    if (!isEditMode && isSetupFlow && result.data?.tId) {
+      router.replace({
+        pathname: '/task/timer',
+        params: { tId: result.data.tId },
+      });
+      return;
+    }
 
     Alert.alert(
       isEditMode ? 'Task successfully updated!' : 'Task successfully created!'
@@ -183,7 +193,7 @@ export default function UpsertTask() {
                 <Text className={labelClassName}>Title</Text>
                 <TextInput
                   className={inputClassName}
-                  placeholder="Enter task title"
+                  placeholder={isSetupFlow ? 'e.g. Solve questions 1-3' : 'Enter task title'}
                   placeholderTextColor="#9CA3AF"
                   value={title}
                   onChangeText={SetTitle}
@@ -195,7 +205,11 @@ export default function UpsertTask() {
                 <Text className={labelClassName}>Description</Text>
                 <TextInput
                   className={`${inputClassName} min-h-28`}
-                  placeholder="Add a short description"
+                  placeholder={
+                    isSetupFlow
+                      ? 'e.g. Work through the first three tasks without notes'
+                      : 'Add a short description'
+                  }
                   placeholderTextColor="#9CA3AF"
                   value={description}
                   onChangeText={SetDescription}
