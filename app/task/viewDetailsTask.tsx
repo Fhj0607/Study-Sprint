@@ -1,6 +1,7 @@
 import { GetActiveSession, RemoveActiveSession } from '@/lib/asyncStorage';
 import { formatDateTime } from '@/lib/date';
 import { CheckAssignmentCompletion } from '@/lib/progress';
+import { DEFAULT_FOCUS_DURATION_MINUTES } from '@/lib/sessionDefaults';
 import { getSubjectColorSet, type SubjectColor } from '@/lib/subjectColors';
 import { supabase } from '@/lib/supabase';
 import type { Task } from '@/lib/types';
@@ -137,7 +138,10 @@ const handleSprintStart = async () => {
   if (!activeSession) {
     router.push({
       pathname: '/task/timer',
-      params: { tId: task?.tId},
+      params: {
+        tId: task?.tId,
+        durationMinutes: String(DEFAULT_FOCUS_DURATION_MINUTES),
+      },
     });
     return;
   }
@@ -150,7 +154,10 @@ const handleSprintStart = async () => {
     await RemoveActiveSession();
     router.push({
       pathname: '/task/timer',
-      params: { tId: task?.tId}
+      params: {
+        tId: task?.tId,
+        durationMinutes: String(DEFAULT_FOCUS_DURATION_MINUTES),
+      }
     });
     return;
     }
@@ -159,13 +166,16 @@ const handleSprintStart = async () => {
   if (activeSession.taskId === task?.tId) {
     router.push({
     pathname: '/task/timer',
-    params: { tId: activeSession.taskId ?? undefined }});
+    params: {
+      tId: activeSession.taskId ?? undefined,
+      durationMinutes: String(DEFAULT_FOCUS_DURATION_MINUTES),
+    }});
     return;
     }
 
     Alert.alert(
       'Active session in progress', 
-      'Starting a new sprint will end the current active session', 
+      `End the current session and start a new ${DEFAULT_FOCUS_DURATION_MINUTES} minute sprint on this task?`,
       [
         { text: 'Cancel', style: 'cancel',  },
         {
@@ -175,7 +185,10 @@ const handleSprintStart = async () => {
             await RemoveActiveSession();
             router.push({
               pathname: '/task/timer',
-              params: { tId: task?.tId },
+              params: {
+                tId: task?.tId,
+                durationMinutes: String(DEFAULT_FOCUS_DURATION_MINUTES),
+              },
             });
           },
         },
@@ -395,7 +408,21 @@ return (
       </View>
 
     {isOwner && (
-      <View className="mt-5 flex-row border-t border-app-border pt-5">
+      <View className="mt-5 border-t border-app-border pt-5">
+        <Pressable
+          className="h-14 items-center justify-center rounded-2xl bg-accent"
+          onPress={() => handleSprintStart()}
+        >
+          <Text className="text-base font-bold text-text-inverse">
+            Start Sprint
+          </Text>
+        </Pressable>
+
+        <Text className="mt-3 text-sm text-text-muted">
+          Starts a {DEFAULT_FOCUS_DURATION_MINUTES} minute focus sprint for this task.
+        </Text>
+
+        <View className="mt-4 flex-row">
         <Pressable
           className="mr-3 flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-subtle py-3"
           onPress={() =>
@@ -410,15 +437,6 @@ return (
           </Text>
         </Pressable>
         <Pressable
-          className='mr-3 flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-subtle py-3'
-          onPress={() => 
-            handleSprintStart()
-          }>
-            <Text className='text.sm font-bold text-text-secondary'>
-              Start Sprint
-            </Text>
-          </Pressable>
-        <Pressable
           className="flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-surface py-3"
           onPress={() => DeleteTask(task.tId)}
         >
@@ -426,6 +444,7 @@ return (
             Delete
           </Text>
         </Pressable>
+        </View>
       </View>
     )}
     </View>

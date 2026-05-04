@@ -3,6 +3,10 @@ import {
   RemoveActiveSession,
   SaveActiveSession,
 } from '@/lib/asyncStorage';
+import {
+  DEFAULT_FOCUS_DURATION_MINUTES,
+  DEFAULT_SHORT_BREAK_DURATION_MINUTES,
+} from '@/lib/sessionDefaults';
 import { supabase } from '@/lib/supabase';
 import type { SessionType, Task } from '@/lib/types';
 import * as Haptics from 'expo-haptics';
@@ -39,7 +43,6 @@ const colors = {
   Might have to save duration as well in DB to preserve timer animation persistance
 */
 
-
 const TIMER_OPTIONS = [...Array(13).keys()].map((index) => (index === 0 ? 1 : index * 5));
 const ITEM_SIZE = width * 0.38;
 const ITEM_SPACING = (width - ITEM_SIZE) / 2;
@@ -48,8 +51,6 @@ const HOLD_TO_CANCEL_MS = 2000;
 const CANCEL_ANIMATION_DELAY_MS = 250;
 const BUTTON_PRESS_IN_MS = 80;
 const BUTTON_PRESS_OUT_MS = 140;
-const SHORT_BREAK_DURATION_MINUTES = 5;
-
 type PostSessionPrompt = {
   completedSessionType: SessionType;
   returnTaskId: string | null;
@@ -94,15 +95,17 @@ type StartSessionInput = {
 
 export default function TimerScreen() {
   const [containerHeight, setContainerHeight] = React.useState(0);
-  const [duration, setDuration] = React.useState(TIMER_OPTIONS[0]);
+  const duration = DEFAULT_FOCUS_DURATION_MINUTES;
   const [timerIsRunning, setIsRunning] = React.useState(false);
   const [timerOverlayVisible, setTimerOverlayVisible] = React.useState(false);
   const [timeRemaining, setTimeRemaining] = React.useState(0);
   const [task, setTask] = React.useState<Task | null>(null);
   const [currentSessionType, setCurrentSessionType] = React.useState<SessionType>('focus');
   const [postSessionPrompt, setPostSessionPrompt] = React.useState<PostSessionPrompt | null>(null);
+  const [pickerDuration, setPickerDuration] = React.useState(DEFAULT_FOCUS_DURATION_MINUTES);
 
   const scrollX = React.useRef(new Animated.Value(0)).current;
+  const pickerListRef = React.useRef<Animated.FlatList<number> | null>(null);
   const timerAnimation = React.useRef(new Animated.Value(0)).current;
   const buttonAnimation = React.useRef(new Animated.Value(0)).current;
   const taskDetailsAnimation = React.useRef(new Animated.Value(0)).current;
@@ -125,18 +128,21 @@ export default function TimerScreen() {
   const cancelHoldIdRef = React.useRef(0);
   const cancelHoldStartedAtRef = React.useRef(0);
 
-  const { tId, sessionType: sessionTypeParam, durationMinutes, durationSeconds, returnTaskId } = useLocalSearchParams<{
+  const { tId, sessionType: sessionTypeParam, durationMinutes, durationSeconds, returnTaskId, chooseDuration } = useLocalSearchParams<{
     tId?: string;
     sessionType?: SessionType;
     durationMinutes?: string;
     durationSeconds?: string;
     returnTaskId?: string;
+    chooseDuration?: string;
   }>();
   const timerOverlayHeight = Math.max(containerHeight, 1);
   const timerOverlayOffscreenY = timerOverlayHeight + 1000;
   const selectedSessionType: SessionType = sessionTypeParam ?? 'focus';
   const showDurationPicker =
-    selectedSessionType === 'focus' && durationMinutes == null && durationSeconds == null;
+    selectedSessionType === 'focus' &&
+    chooseDuration === 'true' &&
+    durationSeconds == null;
   const selectedDurationMinutes = React.useMemo(() => {
     if (!durationMinutes) {
       return null;
@@ -163,6 +169,45 @@ export default function TimerScreen() {
 
     return parsedDuration;
   }, [durationSeconds]);
+  const displayDurationMinutes = React.useMemo(() => {
+    if (selectedDurationSeconds != null) {
+      return null;
+    }
+
+    if (selectedDurationMinutes != null) {
+      return selectedDurationMinutes;
+    }
+
+    if (selectedSessionType === 'focus') {
+      return DEFAULT_FOCUS_DURATION_MINUTES;
+    }
+
+    return DEFAULT_SHORT_BREAK_DURATION_MINUTES;
+  }, [selectedDurationMinutes, selectedDurationSeconds, selectedSessionType]);
+
+  React.useEffect(() => {
+    if (showDurationPicker) {
+      setPickerDuration(displayDurationMinutes ?? duration);
+    }
+  }, [displayDurationMinutes, duration, showDurationPicker]);
+
+  React.useEffect(() => {
+    if (!showDurationPicker) {
+      return;
+    }
+
+    const selectedIndex = Math.max(0, TIMER_OPTIONS.indexOf(pickerDuration));
+    const nextOffset = selectedIndex * ITEM_SIZE;
+
+    scrollX.setValue(nextOffset);
+
+    requestAnimationFrame(() => {
+      pickerListRef.current?.scrollToOffset({
+        offset: nextOffset,
+        animated: false,
+      });
+    });
+  }, [pickerDuration, scrollX, showDurationPicker]);
 
   React.useEffect(() => {
     if (containerHeight > 0 && !timerIsRunning) {
@@ -232,11 +277,6 @@ export default function TimerScreen() {
   const startButtonTranslateY = buttonAnimation.interpolate({
     inputRange: [0, 1],
     outputRange: [0, 200],
-  });
-
-  const pickerOpacity = buttonAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 0],
   });
 
   const taskDetailsOpacity = taskDetailsAnimation.interpolate({
@@ -615,7 +655,6 @@ export default function TimerScreen() {
     cancelOverlayAnimation,
     containerHeight,
     countdownAnimation,
-    duration,
     runStartSequence,
     startCountdown,
     taskDetailsAnimation,
@@ -628,14 +667,24 @@ export default function TimerScreen() {
     }
 
     const totalSeconds =
-      selectedDurationSeconds ?? (selectedDurationMinutes ?? duration) * TIMER_UNIT_IN_SECONDS;
+      selectedDurationSeconds ??
+      (showDurationPicker ? pickerDuration : (displayDurationMinutes ?? duration)) * TIMER_UNIT_IN_SECONDS;
 
     await startSession({
       sessionType: selectedSessionType,
       taskId: selectedSessionType === 'focus' ? (tId ?? null) : null,
       durationSeconds: totalSeconds,
     });
-  }, [duration, selectedDurationMinutes, selectedDurationSeconds, selectedSessionType, startSession, tId]);
+  }, [
+    displayDurationMinutes,
+    duration,
+    pickerDuration,
+    selectedDurationSeconds,
+    selectedSessionType,
+    showDurationPicker,
+    startSession,
+    tId,
+  ]);
 
   const handleStartShortBreak = React.useCallback(() => {
     setPostSessionPrompt(null);
@@ -643,7 +692,7 @@ export default function TimerScreen() {
       pathname: '/task/timer',
       params: {
         sessionType: 'short_break',
-        durationMinutes: String(SHORT_BREAK_DURATION_MINUTES),
+        durationMinutes: String(DEFAULT_SHORT_BREAK_DURATION_MINUTES),
         returnTaskId: tId ?? undefined,
       },
     });
@@ -658,7 +707,10 @@ export default function TimerScreen() {
     setPostSessionPrompt(null);
     router.replace({
       pathname: '/task/timer',
-      params: { tId: postSessionPrompt.returnTaskId },
+      params: {
+        tId: postSessionPrompt.returnTaskId,
+        durationMinutes: String(DEFAULT_FOCUS_DURATION_MINUTES),
+      },
     });
   }, [postSessionPrompt]);
 
@@ -666,6 +718,22 @@ export default function TimerScreen() {
     setPostSessionPrompt(null);
     router.replace('/');
   }, []);
+
+  const handleChooseCustomDuration = React.useCallback(() => {
+    if (timerIsRunning || selectedSessionType !== 'focus') {
+      return;
+    }
+
+    router.replace({
+      pathname: '/task/timer',
+      params: {
+        tId: tId ?? undefined,
+        sessionType: 'focus',
+        chooseDuration: 'true',
+        durationMinutes: String(displayDurationMinutes ?? duration),
+      },
+    });
+  }, [displayDurationMinutes, duration, selectedSessionType, tId, timerIsRunning]);
 
   const cancelTimer = React.useCallback(() => {
     if (!timerIsRunning) {
@@ -735,6 +803,58 @@ export default function TimerScreen() {
     timerOverlayOffscreenY,
     timerIsRunning,
   ]);
+
+  const handleTimerPickerMomentumEnd = React.useCallback(
+    (event: { nativeEvent: { contentOffset: { x: number } } }) => {
+      if (timerIsRunning) {
+        return;
+      }
+
+      const index = Math.round(event.nativeEvent.contentOffset.x / ITEM_SIZE);
+      const clampedIndex = Math.max(0, Math.min(index, TIMER_OPTIONS.length - 1));
+      const nextDuration = TIMER_OPTIONS[clampedIndex];
+
+      setPickerDuration(nextDuration);
+    },
+    [timerIsRunning]
+  );
+
+  const renderTimerItem = React.useCallback(
+    ({ item, index }: { item: number; index: number }) => {
+      const inputRange = [
+        (index - 1) * ITEM_SIZE,
+        index * ITEM_SIZE,
+        (index + 1) * ITEM_SIZE,
+      ];
+
+      const opacity = scrollX.interpolate({
+        inputRange,
+        outputRange: [0.38, 1, 0.38],
+      });
+
+      const scale = scrollX.interpolate({
+        inputRange,
+        outputRange: [0.72, 1, 0.72],
+      });
+
+      return (
+        <View style={styles.timerOptionItem}>
+          <Animated.Text
+            style={[
+              styles.timerOptionText,
+              {
+                opacity,
+                transform: [{ scale }],
+              },
+            ]}
+          >
+            {item}
+          </Animated.Text>
+        </View>
+      );
+    },
+    [scrollX]
+  );
 
   const handleCancelHoldStart = React.useCallback(() => {
     animateButtonPress(true);
@@ -814,57 +934,6 @@ export default function TimerScreen() {
       }).start();
     });
   }, [animateButtonPress, cancelOverlayAnimation, clearCancelHoldTimeouts]);
-
-  const handleTimerPickerMomentumEnd = React.useCallback(
-    (event: { nativeEvent: { contentOffset: { x: number } } }) => {
-      if (timerIsRunning) {
-        return;
-      }
-
-      const index = Math.round(event.nativeEvent.contentOffset.x / ITEM_SIZE);
-      const clampedIndex = Math.max(0, Math.min(index, TIMER_OPTIONS.length - 1));
-      setDuration(TIMER_OPTIONS[clampedIndex]);
-    },
-    [timerIsRunning]
-  );
-
-  const renderTimerItem = React.useCallback(
-    ({ item, index }: { item: number; index: number }) => {
-      const inputRange = [
-        (index - 1) * ITEM_SIZE,
-        index * ITEM_SIZE,
-        (index + 1) * ITEM_SIZE,
-      ];
-
-      const baseOpacity = scrollX.interpolate({
-        inputRange,
-        outputRange: [0.4, 1, 0.4],
-      });
-
-      const opacity = Animated.multiply(baseOpacity, pickerOpacity);
-      const scale = scrollX.interpolate({
-        inputRange,
-        outputRange: [0.7, 1, 0.7],
-      });
-
-      return (
-        <View style={styles.timerOptionItem}>
-          <Animated.Text
-            style={[
-              styles.text,
-              {
-                opacity,
-                transform: [{ scale }],
-              },
-            ]}
-          >
-            {item}
-          </Animated.Text>
-        </View>
-      );
-    },
-    [pickerOpacity, scrollX]
-  );
 
   return (
     <View
@@ -980,21 +1049,27 @@ export default function TimerScreen() {
           ]}
         >
           <Animated.FlatList
+            ref={pickerListRef}
             data={TIMER_OPTIONS}
-            scrollEnabled={!timerIsRunning}
-            keyExtractor={(item) => item.toString()}
             horizontal
             bounces={false}
+            keyExtractor={(item) => item.toString()}
             onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
               useNativeDriver: true,
             })}
-            showsHorizontalScrollIndicator={false}
             onMomentumScrollEnd={handleTimerPickerMomentumEnd}
+            showsHorizontalScrollIndicator={false}
             snapToInterval={ITEM_SIZE}
             decelerationRate="fast"
             style={styles.timerPickerList}
             contentContainerStyle={styles.timerPickerContent}
             renderItem={renderTimerItem}
+            getItemLayout={(_, index) => ({
+              length: ITEM_SIZE,
+              offset: ITEM_SIZE * index,
+              index,
+            })}
+            initialNumToRender={TIMER_OPTIONS.length}
           />
         </View>
       ) : !timerIsRunning ? (
@@ -1002,11 +1077,18 @@ export default function TimerScreen() {
           <Text style={styles.fixedDurationLabel}>
             {selectedDurationSeconds != null
               ? `${selectedDurationSeconds} sec`
-              : `${selectedDurationMinutes ?? SHORT_BREAK_DURATION_MINUTES} min`}
+              : `${displayDurationMinutes ?? duration} min`}
           </Text>
           <Text style={styles.fixedDurationDescription}>
-            This session uses a fixed duration so you can move straight into the next step.
+            {selectedSessionType === 'focus'
+              ? 'This sprint uses the default focus duration so you can begin immediately.'
+              : 'This session uses a fixed duration so you can move straight into the next step.'}
           </Text>
+          {selectedSessionType === 'focus' ? (
+            <TouchableOpacity onPress={handleChooseCustomDuration} style={styles.durationPickerLink}>
+              <Text style={styles.durationPickerLinkText}>Choose a different duration</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
       ) : null}
 
@@ -1041,7 +1123,7 @@ export default function TimerScreen() {
             </Text>
             <Text style={styles.postSessionBody}>
               {postSessionPrompt.completedSessionType === 'focus'
-                ? 'Start a short break now or skip it and return to your dashboard.'
+                ? 'Take a short break, jump straight into another sprint on the same task, or head back to the dashboard.'
                 : 'Jump back into the same task or head back to the dashboard.'}
             </Text>
 
@@ -1050,8 +1132,11 @@ export default function TimerScreen() {
                 <TouchableOpacity onPress={handleStartShortBreak} style={styles.postSessionPrimaryButton}>
                   <Text style={styles.postSessionPrimaryButtonText}>Start short break</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={handleBackToDashboard} style={styles.postSessionSecondaryButton}>
-                  <Text style={styles.postSessionSecondaryButtonText}>Skip break</Text>
+                <TouchableOpacity onPress={handleContinueSameTask} style={styles.postSessionSecondaryButton}>
+                  <Text style={styles.postSessionSecondaryButtonText}>Continue same task</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleBackToDashboard} style={styles.postSessionTertiaryButton}>
+                  <Text style={styles.postSessionTertiaryButtonText}>Back to dashboard</Text>
                 </TouchableOpacity>
               </>
             ) : (
@@ -1102,6 +1187,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     flex: 1,
+    alignItems: 'center',
   },
   timerPickerList: {
     flexGrow: 0,
@@ -1127,6 +1213,23 @@ const styles = StyleSheet.create({
     marginTop: 16,
     textAlign: 'center',
   },
+  durationPickerLink: {
+    marginTop: 18,
+    minHeight: 42,
+    paddingHorizontal: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.24)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  durationPickerLinkText: {
+    color: '#F3EBDD',
+    fontSize: 15,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
   timerPickerContent: {
     paddingHorizontal: ITEM_SPACING,
   },
@@ -1135,7 +1238,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  text: {
+  timerOptionText: {
     fontSize: ITEM_SIZE * 0.8,
     fontFamily: 'Menlo',
     color: colors.text,
@@ -1256,6 +1359,17 @@ const styles = StyleSheet.create({
   postSessionSecondaryButtonText: {
     color: '#323F4E',
     fontSize: 16,
+    fontWeight: '700',
+  },
+  postSessionTertiaryButton: {
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+  },
+  postSessionTertiaryButtonText: {
+    color: '#52606D',
+    fontSize: 15,
     fontWeight: '700',
   },
 });

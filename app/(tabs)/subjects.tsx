@@ -28,7 +28,7 @@ const FLOW_STEPS = [
   {
     label: '4',
     title: 'Sprint',
-    description: 'A sprint is one focused work session tied to a single task and tracked by the timer.',
+    description: 'A sprint is one focused work session tied to a single task. After it ends, you can take a break, continue the same task, or return to the dashboard.',
   },
 ] as const;
 
@@ -123,7 +123,7 @@ export default function Subjects() {
             <View className="flex-row items-start justify-between gap-3">
               <View>
                 <Text className="text-xs font-bold uppercase tracking-[0.8px] text-[#7B8794]">
-                  How the app is structured
+                  How work is organized
                 </Text>
                 <Text className="mt-1 text-[28px] font-extrabold text-[#1F2933]">
                   Study flow
@@ -139,7 +139,7 @@ export default function Subjects() {
             </View>
 
             <Text className="text-[15px] leading-[22px] text-[#52606D]">
-              Build your work from the big container down to the focused work session.
+              Build your work from the big container down to one concrete task, then use sprints and breaks to move that work forward.
             </Text>
 
             <ScrollView
@@ -179,16 +179,16 @@ export default function Subjects() {
               <Text className="mt-[6px] text-base font-bold text-[#1F2933]">
                 {'Subject -> Assignment -> Task -> Sprint'}
               </Text>
+              <Text className="mt-2 text-sm leading-[20px] text-[#52606D]">
+                Subjects hold the study structure. The dashboard is where you resume active sessions, start the next sprint, and check recent progress.
+              </Text>
             </View>
 
             <Pressable
               className="min-h-12 items-center justify-center rounded-2xl bg-[#323F4E] px-4"
-              onPress={() => {
-                setIsFlowInfoVisible(false);
-                router.push('/subjects');
-              }}
+              onPress={() => setIsFlowInfoVisible(false)}
             >
-              <Text className="text-[15px] font-bold text-white">Start with Subjects</Text>
+              <Text className="text-[15px] font-bold text-white">Close Guide</Text>
             </Pressable>
           </View>
         </View>

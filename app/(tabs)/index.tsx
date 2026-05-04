@@ -7,6 +7,7 @@ import type { SessionType } from '@/lib/types';
 import { formatDate, formatDateTime } from '@/lib/date';
 import { RegisterForLocalNotificationsAsync } from '@/lib/notifications';
 import { CheckAssignmentCompletion } from '@/lib/progress';
+import { DEFAULT_FOCUS_DURATION_MINUTES } from '@/lib/sessionDefaults';
 import { supabase } from "@/lib/supabase";
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Session } from '@supabase/supabase-js';
@@ -73,7 +74,7 @@ const FLOW_STEPS = [
   {
     label: '4',
     title: 'Sprint',
-    description: 'A sprint is one focused work session tied to a single task and tracked by the timer.',
+    description: 'A sprint is one focused work session tied to a single task. After it ends, you can take a break, continue the same task, or return to the dashboard.',
   },
 ] as const;
 
@@ -545,6 +546,71 @@ export default function HomeScreen() {
     setCompletingTaskId(null);
   }, [completingTaskId]);
 
+  const handleStartSprint = useCallback(async (task: UpcomingDeadlineTask) => {
+    const storedSession = await GetActiveSession();
+
+    if (!storedSession) {
+      router.push({
+        pathname: '/task/timer',
+        params: {
+          tId: task.tId,
+          durationMinutes: String(DEFAULT_FOCUS_DURATION_MINUTES),
+        },
+      });
+      return;
+    }
+
+    const secondsLeft = Math.ceil((storedSession.endTime - Date.now()) / 1000);
+
+    if (secondsLeft <= 0) {
+      await RemoveActiveSession();
+      router.push({
+        pathname: '/task/timer',
+        params: {
+          tId: task.tId,
+          durationMinutes: String(DEFAULT_FOCUS_DURATION_MINUTES),
+        },
+      });
+      return;
+    }
+
+    if (storedSession.taskId === task.tId) {
+      router.push({
+        pathname: '/task/timer',
+        params: {
+          tId: task.tId,
+          durationMinutes: String(DEFAULT_FOCUS_DURATION_MINUTES),
+        },
+      });
+      return;
+    }
+
+    Alert.alert(
+      'Active session in progress',
+      `End the current session and start a new ${DEFAULT_FOCUS_DURATION_MINUTES} minute sprint on "${task.title}"?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Start sprint',
+          style: 'destructive',
+          onPress: async () => {
+            await RemoveActiveSession();
+            router.push({
+              pathname: '/task/timer',
+              params: {
+                tId: task.tId,
+                durationMinutes: String(DEFAULT_FOCUS_DURATION_MINUTES),
+              },
+            });
+          },
+        },
+      ]
+    );
+  }, []);
+
   return (
     <View className="flex-1 bg-app-bg">
       <Stack.Screen
@@ -601,7 +667,7 @@ export default function HomeScreen() {
               <View className="flex-row items-start justify-between gap-3">
                 <View>
                   <Text className="text-xs font-bold uppercase tracking-[0.8px] text-[#7B8794]">
-                    How the app is structured
+                    How work is organized
                   </Text>
                   <Text className="mt-1 text-[28px] font-extrabold text-[#1F2933]">
                     Study flow
@@ -617,7 +683,7 @@ export default function HomeScreen() {
               </View>
 
               <Text className="text-[15px] leading-[22px] text-[#52606D]">
-                Build your work from the big container down to the focused work session.
+                Build your work from the big container down to one concrete task, then use sprints and breaks to move that work forward.
               </Text>
 
               <ScrollView
@@ -653,6 +719,9 @@ export default function HomeScreen() {
                 <Text className="mt-[6px] text-base font-bold text-[#1F2933]">
                   {'Subject -> Assignment -> Task -> Sprint'}
                 </Text>
+                <Text className="mt-2 text-sm leading-[20px] text-[#52606D]">
+                  The dashboard then helps you resume an active session, start the next sprint, or review recent study progress.
+                </Text>
               </View>
 
               <Pressable
@@ -662,7 +731,7 @@ export default function HomeScreen() {
                   router.push('/subjects');
                 }}
               >
-                <Text className="text-[15px] font-bold text-white">Start with Subjects</Text>
+                <Text className="text-[15px] font-bold text-white">Open Subjects</Text>
               </Pressable>
             </View>
           </View>
@@ -723,7 +792,9 @@ export default function HomeScreen() {
                 })
               }
             >
-              <Text className="text-[15px] font-bold text-white">Open Session</Text>
+              <Text className="text-[15px] font-bold text-white">
+                {activeSprint.sessionType === 'focus' ? 'Resume Sprint' : 'Resume Break'}
+              </Text>
             </Pressable>
           </View>
         ) : (
@@ -799,6 +870,18 @@ export default function HomeScreen() {
                 <Text className="text-[13px] font-semibold text-[#7B8794]">
                   {task.subjectTitle} • {task.assignmentTitle} • {formatDate(task.deadline)}
                 </Text>
+
+                <Pressable
+                  className="mt-2 min-h-10 items-center justify-center rounded-xl bg-[#DCE8F7] px-4"
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    void handleStartSprint(task);
+                  }}
+                >
+                  <Text className="text-sm font-bold text-[#1F2933]">
+                    Start Sprint
+                  </Text>
+                </Pressable>
 
                 <Pressable
                   className={`mt-2 min-h-10 items-center justify-center rounded-xl px-4 ${
