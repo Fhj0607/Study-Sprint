@@ -13,6 +13,8 @@ After that, the work shifted into the remaining first-time-user gap from the vis
 
 The final pass of the day was smaller, but still tied to the same product goal. The help modals on the dashboard and subjects screens were rewritten so they explain the focus-session and break rhythm in a more human way instead of sounding like a rigid step list.
 
+After that, one final navigation-polish pass was added on the tabs layout itself. The bottom tabs were given explicit icons so the app's primary navigation reads faster at a glance and feels less unfinished.
+
 ---
 
 ## #ImplementedFeatures
@@ -163,6 +165,18 @@ This better matches the app's tone and makes the focus/break cycle easier to und
 
 ---
 
+### #TabBarIconPolish
+Added explicit icons to the bottom-tab navigation so the two primary surfaces are easier to scan:
+- updated `app/(tabs)/_layout.tsx`
+- reused the existing `MaterialIcons` set already used elsewhere in the app
+- assigned:
+  - `dashboard` to the dashboard tab
+  - `menu-book` to the subjects tab
+
+This was a small UI polish pass, but it improves immediate navigation clarity and makes the tab bar feel more intentional instead of placeholder-like.
+
+---
+
 ## #ProblemsAndSetbacks
 
 ### #SessionTruthDivergence
@@ -205,6 +219,7 @@ The app now supports:
 - a one-time onboarding sprint demo that uses a 5-second timer
 - direct dashboard routing after the onboarding demo completes, without the normal completion modal
 - help modals that explain the study loop in a more natural way
+- explicit tab icons that make dashboard and subjects easier to distinguish at a glance
 
 At this point, the timer/session work is closer to a finished loop, and the first-time-user path is more in line with the intended product vision. The biggest remaining work is now less about feature gaps and more about making sure the final report and final app behavior stay aligned.
 
@@ -249,4 +264,7 @@ Later manual testing also validated the guided-setup flow after the onboarding f
 - the first setup sprint used the intended 5-second demo timer
 - after the demo finished, the user was sent directly to the dashboard without seeing the normal session-complete modal
 
-The final UI pass for the day was lighter and did not change behavior, but static verification still confirmed the help-modal copy changes landed cleanly on both tabs screens.
+The final UI pass for the day was lighter and did not change behavior, but the resulting tabs-layout diff was reviewed directly and confirmed to be limited to navigation presentation:
+- explicit `MaterialIcons` import in the tabs layout
+- `dashboard` icon for the dashboard tab
+- `menu-book` icon for the subjects tab

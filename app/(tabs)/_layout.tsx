@@ -1,5 +1,6 @@
 import { getSetupStatus } from "@/lib/setupStatus";
 import { supabase } from "@/lib/supabase";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Session } from "@supabase/supabase-js";
 import * as Notifications from 'expo-notifications';
 import { Redirect, router, Tabs } from "expo-router";
@@ -93,8 +94,25 @@ export default function TabLayout() {
     screenOptions={{
       headerShown: true,
     }}>
-      <Tabs.Screen name="index" options={{title: 'Dashboard', tabBarLabel: 'Dashboard', }} />
-      <Tabs.Screen name="subjects" options={{title: "Subjects"}} />
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Dashboard',
+          tabBarLabel: 'Dashboard',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="dashboard" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="subjects"
+        options={{
+          title: "Subjects",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="menu-book" color={color} size={size} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }
