@@ -270,6 +270,7 @@ export default function UpsertAssignment() {
               <View className="mb-5">
                 <Text className={labelClassName}>Title</Text>
                 <TextInput
+                  testID = "assignment-title-input"
                   className={inputClassName}
                   placeholder={
                     isSetupFlow ? 'e.g. Weekly problem set 3' : 'Enter assignment title'
@@ -345,6 +346,7 @@ export default function UpsertAssignment() {
               </Pressable>
 
               <Pressable
+                testID = "upsert-assignment-button"
                 className={`h-14 items-center justify-center rounded-2xl ${
                   isSaving ? 'bg-accent-disabled' : 'bg-accent'
                 }`}

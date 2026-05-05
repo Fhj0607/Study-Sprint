@@ -175,6 +175,7 @@ export default function UpsertSubject() {
                                 <Text className={labelClassName}>Title</Text>
                                 <TextInput className={inputClassName}
                                     placeholder={isSetupFlow ? 'e.g. Algorithms' : 'Enter subject title'}
+                                    testID = "subject-title-input"
                                     placeholderTextColor="#9CA3AF"
                                     value={title}
                                     onChangeText={setTitle}
@@ -324,6 +325,7 @@ export default function UpsertSubject() {
                             </Pressable>
 
                             <Pressable
+                                testID = "upsert-subject-button"
                                 className={`h-14 items-center justify-center rounded-2xl ${
                                     isSaving 
                                         ? 'bg-accent-disabled' 

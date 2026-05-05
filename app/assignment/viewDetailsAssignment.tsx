@@ -6,7 +6,7 @@ import type { Assignment, Task } from '@/lib/types';
 import { Session } from '@supabase/supabase-js';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, SectionList, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, SectionList, Text, View } from "react-native";
 
 
 export default function ViewDetailsAssignment() {
@@ -14,6 +14,7 @@ export default function ViewDetailsAssignment() {
   const [assignment, SetAssignment] = useState<Assignment | null>(null);
   const [tasks, SetTasks] = useState<Task[]>([]);
   const [session, SetSession] = useState<Session | null>(null);
+  const [isLoading, SetIsLoading] = useState(false);
   const [subjectMeta, setSubjectMeta] = useState({
     title: 'No Subject',
     color: 'slate' as SubjectColor,
@@ -34,11 +35,15 @@ export default function ViewDetailsAssignment() {
   [])
 
   const GetAssignment = async (assignmentId: string) => {
-  const { data, error } = await supabase
-    .from('assignments')
-    .select('*')
-    .eq('aId', assignmentId)
-    .single();
+    SetIsLoading(true);
+
+    const { data, error } = await supabase
+      .from('assignments')
+      .select('*')
+      .eq('aId', assignmentId)
+      .single();
+
+    SetIsLoading(false);  
 
     if (error || !data) {
       Alert.alert('Assignment could not be fetched, please try again');
@@ -48,11 +53,15 @@ export default function ViewDetailsAssignment() {
     SetAssignment(data);
 
     if (data.sId) {
+      SetIsLoading(true);
+
       const { data: subjectData, error: subjectError } = await supabase
         .from('subjects')
         .select('title, color')
         .eq('sId', data.sId)
         .single();
+
+      SetIsLoading(false);
 
       if (subjectError || !subjectData) {
         setSubjectMeta({
@@ -70,7 +79,11 @@ export default function ViewDetailsAssignment() {
   };
 
   const GetTasks = async (aId: string) => { 
+    SetIsLoading(true);
+
     const { data, error } = await supabase.from("tasks").select("*").eq("aId", aId);
+
+    SetIsLoading(false);
 
     if (error) {
       Alert.alert("Tasks could not be fetched, please try again");
@@ -165,6 +178,32 @@ export default function ViewDetailsAssignment() {
     )
   }
 
+  const ToggleTaskCompletion = async (task: Task) => {
+    const nextIsCompleted = !task.isCompleted;
+
+    const { error } = await supabase
+      .from("tasks")
+      .update({
+        isCompleted: nextIsCompleted,
+        lastChanged: new Date().toISOString(),
+      })
+      .eq("tId", task.tId);
+
+    if (error) {
+      Alert.alert("Task could not be updated, please try again");
+      return;
+    }
+
+    try {
+      await CheckAssignmentCompletion(task.aId);
+    } catch {
+      Alert.alert("Failed to update assignment completion state");
+    }
+
+    await GetTasks(task.aId);
+    await GetAssignment(task.aId);
+  }
+
   const colorSet = getSubjectColorSet(subjectMeta.color);
 
   const completedTasks = tasks.filter((task) => task.isCompleted).length;
@@ -175,6 +214,14 @@ export default function ViewDetailsAssignment() {
     totalTasks === 0
       ? 0
       : Math.round((completedTasks / totalTasks) * 100);
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-app-bg">
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
 
   if (!assignment) {
     return (
@@ -233,7 +280,7 @@ export default function ViewDetailsAssignment() {
       <SectionList
         className="flex-1"
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 32 }}
-        sections={taskSections}
+        sections={totalTasks === 0 ? [] : taskSections}
         keyExtractor={(item) => item.tId}
         showsVerticalScrollIndicator={false}
         stickySectionHeadersEnabled={false}
@@ -247,18 +294,6 @@ export default function ViewDetailsAssignment() {
               }}
             >
               <View className="flex-row items-start">
-                <View
-                  className="mr-3 mt-1 h-6 w-6 items-center justify-center rounded-md border-2"
-                  style={{
-                    borderColor: assignment.isCompleted ? colorSet.strong : '#DDD6C8',
-                    backgroundColor: assignment.isCompleted ? colorSet.strong : '#EFEBE3',
-                  }}
-                >
-                  {assignment.isCompleted && (
-                    <Text className="text-sm font-bold text-text-inverse">✓</Text>
-                  )}
-                </View>
-
                 <View className="flex-1">
                   <Text className="text-2xl font-bold text-text-main">
                     {assignment.title}
@@ -323,6 +358,35 @@ export default function ViewDetailsAssignment() {
                     Based only on completed tasks in this assignment.
                   </Text>
                 </View>
+                  {totalTasks > 0 ? (
+                    <View className="mt-5">
+                      <View className="mb-2 flex-row items-center justify-between">
+                        <Text className="text-sm font-semibold text-text-secondary">
+                          Task Progress
+                        </Text>
+
+                        <Text className="text-sm font-bold text-text-main">
+                          {completedTasks}/{totalTasks}
+                        </Text>
+                      </View>
+
+                      <View className="h-3 overflow-hidden rounded-full bg-app-subtle">
+                        <View
+                          className="h-full rounded-full"
+                          style={{
+                            width: `${progress}%`,
+                            backgroundColor: colorSet.strong,
+                          }}
+                        />
+                      </View>
+
+                      <Text className="mt-2 text-xs font-medium text-text-secondary">
+                        {remainingTasks === 0
+                          ? 'All tasks complete'
+                          : `${remainingTasks} task${remainingTasks === 1 ? '' : 's'} remaining`}
+                      </Text>
+                    </View>
+                  ) : null}
 
                 <Text className="mt-4 text-sm text-text-muted">
                   Last changed: {formatDateTime(assignment.lastChanged)}
@@ -335,7 +399,7 @@ export default function ViewDetailsAssignment() {
                   className="mr-3 flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-subtle py-3"
                   onPress={() =>
                     router.push({
-                      pathname: '/assignment/upsertAssignment',
+                      pathname: '../assignment/upsertAssignment',
                       params: { aId: assignment.aId },
                     })
                   }
@@ -344,6 +408,7 @@ export default function ViewDetailsAssignment() {
                 </Pressable>
 
                 <Pressable
+                  testID="delete-assignment-button"
                   className="flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-surface py-3"
                   onPress={() => DeleteAssignment(assignment.aId)}
                 >
@@ -358,7 +423,7 @@ export default function ViewDetailsAssignment() {
               className="mb-6 mt-5 h-14 items-center justify-center rounded-2xl bg-accent"
               onPress={() =>
                 router.push({
-                  pathname: '/task/upsertTask',
+                  pathname: '../task/upsertTask',
                   params: { aId: assignment.aId },
                 })
               }
@@ -400,18 +465,6 @@ export default function ViewDetailsAssignment() {
                 }
               >
                 <View className="flex-row items-start">
-                  <View
-                    className="mr-3 mt-1 h-6 w-6 items-center justify-center rounded-md border-2"
-                    style={{
-                      borderColor: item.isCompleted ? colorSet.strong : '#DDD6C8',
-                      backgroundColor: item.isCompleted ? colorSet.strong : '#EFEBE3',
-                    }}
-                  >
-                    {item.isCompleted && (
-                      <Text className="text-sm font-bold text-text-inverse">✓</Text>
-                    )}
-                  </View>
-
                   <View className="flex-1">
                     <Text
                       className={`text-base font-bold ${
@@ -436,10 +489,23 @@ export default function ViewDetailsAssignment() {
               {isOwner && (
                 <View className="mt-4 flex-row border-t border-app-border pt-4">
                   <Pressable
+                    className="mr-3 flex-1 items-center justify-center rounded-2xl py-3"
+                    style={{ backgroundColor: item.isCompleted ? '#EFEBE3' : colorSet.soft }}
+                    onPress={() => ToggleTaskCompletion(item)}
+                  >
+                    <Text
+                      className="text-sm font-bold"
+                      style={{ color: colorSet.strong }}
+                    >
+                      {item.isCompleted ? 'Reopen' : 'Complete'}
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
                     className="mr-3 flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-subtle py-3"
                     onPress={() =>
                       router.push({
-                        pathname: '/task/upsertTask',
+                        pathname: '../task/upsertTask',
                         params: { tId: item.tId },
                       })
                     }
@@ -460,6 +526,19 @@ export default function ViewDetailsAssignment() {
             </View>
           );
         }}
+        ListEmptyComponent={
+          <View
+            className="mb-6 rounded-3xl border border-app-border bg-app-surface p-5"
+            style={{ borderColor: colorSet.strong }}
+          >
+            <Text className="text-center text-base font-semibold text-text-secondary">
+              No tasks needed yet
+            </Text>
+            <Text className="mt-1 text-center text-sm text-text-muted">
+              Add tasks if this assignment needs smaller steps.
+            </Text>
+          </View>
+        }
         renderSectionFooter={({ section }) =>
           section.data.length === 0 ? (
             <View className="mb-6 rounded-3xl border border-app-border bg-app-surface p-5" style={{ borderColor: colorSet.strong }}>

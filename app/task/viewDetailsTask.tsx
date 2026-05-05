@@ -9,7 +9,7 @@ import type { Task } from '@/lib/types';
 import { Session } from '@supabase/supabase-js';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 
 function formatTrackedTime(totalSeconds: number) {
   if (totalSeconds <= 0) {
@@ -89,7 +89,16 @@ const GetTask = useCallback(async (taskId: string) => {
       .from('assignments')
       .select('title, sId')
       .eq('aId', data.aId)
+  const GetTask = async (taskId: string) => {
+    SetIsLoading(true);
+
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('tId', taskId)
       .single();
+    
+    SetIsLoading(false);    
 
     if (assignmentError || !assignmentData) {
       setContextMeta({
@@ -108,6 +117,20 @@ const GetTask = useCallback(async (taskId: string) => {
         .single();
 
       if (subjectError || !subjectData) {
+    SetTask(data);
+
+    if (data.aId) {
+      SetIsLoading(true);
+
+      const { data: assignmentData, error: assignmentError } = await supabase
+        .from('assignments')
+        .select('title, sId')
+        .eq('aId', data.aId)
+        .single();
+
+      SetIsLoading(false);    
+
+      if (assignmentError || !assignmentData) {
         setContextMeta({
           subjectTitle: 'Unknown Subject',
           assignmentTitle: assignmentData.title ?? 'Unknown Assignment',
@@ -124,6 +147,25 @@ const GetTask = useCallback(async (taskId: string) => {
     }
   }
 }, [loadTaskStudyActivity]);
+      if (assignmentData.sId) {
+        SetIsLoading(true);
+
+        const { data: subjectData, error: subjectError } = await supabase
+          .from('subjects')
+          .select('title, color')
+          .eq('sId', assignmentData.sId)
+          .single();
+
+        SetIsLoading(false);  
+
+        if (subjectError || !subjectData) {
+          setContextMeta({
+            subjectTitle: 'Unknown Subject',
+            assignmentTitle: assignmentData.title ?? 'Unknown Assignment',
+            subjectColor: 'slate',
+          });
+          return;
+        }
 
 useFocusEffect(
   useCallback(() => {
@@ -195,7 +237,36 @@ const handleSprintStart = async () => {
         },
       ]
     );
+  };
+
+  const colorSet = getSubjectColorSet(contextMeta.subjectColor);
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-app-bg">
+        <ActivityIndicator size="large" />
+      </View>
+    );
   }
+
+  if (!task) {
+    return (
+      <View className="flex-1 bg-app-bg px-5 pt-6">
+        <Stack.Screen
+          options={{
+            title: 'Task Details',
+            headerRight: () => (
+              <Pressable
+                className="rounded-full bg-app-subtle px-4 py-2"
+                onPress={async () => await supabase.auth.signOut()}
+              >
+                <Text className="text-sm font-semibold text-text-secondary">
+                  Logout
+                </Text>
+              </Pressable>
+            ),
+          }}
+        />
 
 
 const DeleteTask = async (taskId: string) => {
