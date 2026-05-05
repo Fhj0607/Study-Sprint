@@ -8,8 +8,6 @@ import { Redirect, router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Text, View, ActivityIndicator } from 'react-native';
 
-import type { SubjectColor } from '@/lib/subjectColors';
-
 const FLOW_STEPS = [
   {
     label: '1',
@@ -77,14 +75,10 @@ export default function Subjects() {
   }, [session?.user.id]);
 
   const GetSubjects = useCallback(async () => {
-    if (!session?.user.id) return;
-  const GetSubjects = async () => {
     if (!session?.user.id) {
       SetIsLoading(false);
       return;
     }
-
-    SetIsLoading(true);
 
     SetIsLoading(true);
 
@@ -94,18 +88,15 @@ export default function Subjects() {
       .eq('uId', session.user.id)
       .order('lastChanged', { ascending: false });
 
-    SetIsLoading(false);  
+    SetIsLoading(false);
 
     if (error) {
       Alert.alert('Subjects could not be fetched, please try again');
-      SetIsLoading(false);
       return;
     }
 
     SetSubjects((data as Subject[]) ?? []);
   }, [session?.user.id]);
-    SetIsLoading(false);
-  };
 
   useFocusEffect(
     useCallback(() => {
@@ -121,6 +112,8 @@ export default function Subjects() {
 
   if (needsSetup) {
     return <Redirect href="/setup" />;
+  }
+
   const RenderSubjectCard = (subject: Subject) => {
     const colorKey: SubjectColor = subject.color ?? 'slate';
     const colorSet = SUBJECT_COLORS[colorKey];
