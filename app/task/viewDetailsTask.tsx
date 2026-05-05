@@ -1,7 +1,8 @@
-import { GetActiveSession, RemoveActiveSession } from '@/lib/asyncStorage';
+import { GetActiveSession } from '@/lib/asyncStorage';
 import { formatDateTime } from '@/lib/date';
 import { CheckAssignmentCompletion } from '@/lib/progress';
 import { DEFAULT_FOCUS_DURATION_MINUTES } from '@/lib/sessionDefaults';
+import { finalizeStoredSession } from '@/lib/sessionLifecycle';
 import { getSubjectColorSet, type SubjectColor } from '@/lib/subjectColors';
 import { supabase } from '@/lib/supabase';
 import type { Task } from '@/lib/types';
@@ -151,7 +152,7 @@ const handleSprintStart = async () => {
   const secondsLeft = Math.ceil((activeSession.endTime - Date.now()) / 1000)
 
   if (secondsLeft <= 0) {
-    await RemoveActiveSession();
+    await finalizeStoredSession('expired', activeSession);
     router.push({
       pathname: '/task/timer',
       params: {
@@ -182,7 +183,7 @@ const handleSprintStart = async () => {
           text: 'Start new sprint',
           style: 'destructive',
           onPress: async () => {
-            await RemoveActiveSession();
+            await finalizeStoredSession('cancelled', activeSession);
             router.push({
               pathname: '/task/timer',
               params: {

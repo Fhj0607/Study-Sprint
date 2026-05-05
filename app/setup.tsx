@@ -1,4 +1,5 @@
-import { GetActiveSession, RemoveActiveSession, type ActiveSession } from '@/lib/asyncStorage';
+import { GetActiveSession, type ActiveSession } from '@/lib/asyncStorage';
+import { finalizeStoredSession } from '@/lib/sessionLifecycle';
 import { supabase } from '@/lib/supabase';
 import { Session } from '@supabase/supabase-js';
 import { Redirect, Stack, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
@@ -121,7 +122,7 @@ export default function SetupScreen() {
       ]);
 
     if (storedActiveSession && storedActiveSession.endTime <= Date.now()) {
-      await RemoveActiveSession();
+      await finalizeStoredSession('expired', storedActiveSession);
       setActiveSession(null);
     } else {
       setActiveSession(storedActiveSession);
@@ -218,7 +219,7 @@ export default function SetupScreen() {
     }
 
     if (freshActiveSession) {
-      await RemoveActiveSession();
+      await finalizeStoredSession('expired', freshActiveSession);
       setActiveSession(null);
     }
 

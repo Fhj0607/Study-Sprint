@@ -1,13 +1,20 @@
 import {
   GetActiveSession,
-  RemoveActiveSession,
+  GetStudyCycle,
+  RemoveStudyCycle,
   SaveActiveSession,
+  SaveStudyCycle,
   type ActiveSession,
+  type StudyCycle,
 } from '@/lib/asyncStorage';
 import {
   DEFAULT_FOCUS_DURATION_MINUTES,
+  DEFAULT_LONG_BREAK_DURATION_MINUTES,
   DEFAULT_SHORT_BREAK_DURATION_MINUTES,
+  FOCUS_SESSIONS_PER_LONG_BREAK,
+  STUDY_CYCLE_IDLE_RESET_MINUTES,
 } from '@/lib/sessionDefaults';
+import { finalizeStoredSession } from '@/lib/sessionLifecycle';
 import { supabase } from '@/lib/supabase';
 import type { SessionType, Task } from '@/lib/types';
 import * as Haptics from 'expo-haptics';
@@ -33,17 +40,6 @@ const colors = {
   text: '#ffffff',
 };
 
-
-/*
-  TODO
-  Make timer count down even when app is un-focused or closed.
-  Set const endTime = Date.now() + duration and save that to the task, maybe? 
-  Then trigger notif when endTime == Date.now()? 
-  Then fetch endTime from DB -> if null then timer is inactive
-  if !null then set timer to endTime  - Date.now() and start
-  Might have to save duration as well in DB to preserve timer animation persistance
-*/
-
 const TIMER_OPTIONS = [...Array(13).keys()].map((index) => (index === 0 ? 1 : index * 5));
 const ITEM_SIZE = width * 0.38;
 const ITEM_SPACING = (width - ITEM_SIZE) / 2;
@@ -52,10 +48,23 @@ const HOLD_TO_CANCEL_MS = 2000;
 const CANCEL_ANIMATION_DELAY_MS = 250;
 const BUTTON_PRESS_IN_MS = 80;
 const BUTTON_PRESS_OUT_MS = 140;
+const STUDY_CYCLE_IDLE_RESET_MS = STUDY_CYCLE_IDLE_RESET_MINUTES * 60 * 1000;
+
 type PostSessionPrompt = {
   completedSessionType: SessionType;
   returnTaskId: string | null;
+  nextBreakType: 'short_break' | 'long_break' | null;
 };
+
+type BreakSessionType = Extract<SessionType, 'short_break' | 'long_break'>;
+
+function isBreakSession(sessionType: SessionType): sessionType is BreakSessionType {
+  return sessionType === 'short_break' || sessionType === 'long_break';
+}
+
+function isStudyCycleActive(studyCycle: StudyCycle, taskId: string, now: number) {
+  return studyCycle.taskId === taskId && now - studyCycle.lastCompletedAt <= STUDY_CYCLE_IDLE_RESET_MS;
+}
 
 function formatTime(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60);
@@ -91,6 +100,7 @@ function getSessionLabel(sessionType: SessionType) {
 type StartSessionInput = {
   sessionType: SessionType;
   taskId: string | null;
+  returnTaskId: string | null;
   durationSeconds: number;
 };
 
@@ -208,7 +218,7 @@ export default function TimerScreen() {
         animated: false,
       });
     });
-  }, [pickerDuration, scrollX, showDurationPicker]);
+  }, [pickerDuration, scrollX, showDurationPicker, timerIsRunning]);
 
   React.useEffect(() => {
     if (containerHeight > 0 && !timerIsRunning) {
@@ -294,24 +304,12 @@ export default function TimerScreen() {
     finalStatus: 'completed' | 'cancelled' | 'expired',
     activeSessionOverride?: ActiveSession | null
   ) => {
-    const activeSession = activeSessionOverride ?? await GetActiveSession();
+    const result = await finalizeStoredSession(finalStatus, activeSessionOverride);
 
-    if (!activeSession) {
-      return;
-    }
-
-    await RemoveActiveSession();
-
-    const { error } = await supabase.rpc('finalize_sprint_session', {
-      p_session_id: activeSession.sessionId,
-      p_final_status: finalStatus,
-      p_ended_at: new Date().toISOString(),
-    });
-
-    if (error) {
+    if (result?.error) {
       Alert.alert(
         'Could not finalize sprint session',
-        error.message
+        result.error.message
       );
     }
   }, []);
@@ -376,8 +374,68 @@ export default function TimerScreen() {
     setTimerOverlayVisible(false);
     setTimeRemaining(0);
     setCurrentSessionType(selectedSessionType);
+    setPostSessionPrompt(null);
     setIsRunning(false);
   }, [cancelOverlayAnimation, selectedSessionType, timerAnimation, timerOverlayOffscreenY]);
+
+  const syncStudyCycleAfterCompletion = React.useCallback(
+    async (
+      completedSessionType: SessionType,
+      completedTaskId: string | null
+    ): Promise<'short_break' | 'long_break' | null> => {
+      const now = Date.now();
+
+      if (completedSessionType === 'focus') {
+        if (!completedTaskId) {
+          await RemoveStudyCycle();
+          return 'short_break';
+        }
+
+        const currentStudyCycle = await GetStudyCycle();
+        const nextCompletedFocusSessions =
+          currentStudyCycle && isStudyCycleActive(currentStudyCycle, completedTaskId, now)
+            ? currentStudyCycle.completedFocusSessions + 1
+            : 1;
+
+        await SaveStudyCycle({
+          taskId: completedTaskId,
+          completedFocusSessions: nextCompletedFocusSessions,
+          lastCompletedSessionType: 'focus',
+          lastCompletedAt: now,
+        });
+
+        return nextCompletedFocusSessions % FOCUS_SESSIONS_PER_LONG_BREAK === 0
+          ? 'long_break'
+          : 'short_break';
+      }
+
+      if (!isBreakSession(completedSessionType) || !completedTaskId) {
+        await RemoveStudyCycle();
+        return null;
+      }
+
+      const currentStudyCycle = await GetStudyCycle();
+
+      if (!currentStudyCycle || !isStudyCycleActive(currentStudyCycle, completedTaskId, now)) {
+        await RemoveStudyCycle();
+        return null;
+      }
+
+      if (completedSessionType === 'long_break') {
+        await RemoveStudyCycle();
+        return null;
+      }
+
+      await SaveStudyCycle({
+        ...currentStudyCycle,
+        lastCompletedSessionType: completedSessionType,
+        lastCompletedAt: now,
+      });
+
+      return null;
+    },
+    []
+  );
 
   const finishTimer = React.useCallback(() => {
     clearCountdownInterval();
@@ -418,13 +476,18 @@ export default function TimerScreen() {
           const completedReturnTaskId =
             completedSessionType === 'focus'
               ? (completedSession?.taskId ?? tId ?? null)
-              : (returnTaskId ?? null);
+              : (completedSession?.returnTaskId ?? returnTaskId ?? null);
+          const nextBreakType = await syncStudyCycleAfterCompletion(
+            completedSessionType,
+            completedReturnTaskId
+          );
 
           setIsRunning(false);
           resetSessionValues();
           setPostSessionPrompt({
             completedSessionType,
             returnTaskId: completedReturnTaskId,
+            nextBreakType,
           });
 
           await finalizeSprintSession('completed', completedSession);
@@ -440,6 +503,7 @@ export default function TimerScreen() {
     finalizeSprintSession,
     focusModeAnimation,
     resetSessionValues,
+    syncStudyCycleAfterCompletion,
     taskDetailsAnimation,
     returnTaskId,
     tId,
@@ -603,6 +667,7 @@ export default function TimerScreen() {
   const startSession = React.useCallback(async ({
     sessionType,
     taskId,
+    returnTaskId,
     durationSeconds,
   }: StartSessionInput) => {
     if (timerIsRunning || containerHeight === 0) {
@@ -612,6 +677,15 @@ export default function TimerScreen() {
     if (sessionType === 'focus' && !taskId) {
       Alert.alert('Could not start session', 'Focus sessions must be linked to a task.');
       return;
+    }
+
+    if (sessionType === 'focus' && taskId) {
+      const currentStudyCycle = await GetStudyCycle();
+      const now = Date.now();
+
+      if (currentStudyCycle && !isStudyCycleActive(currentStudyCycle, taskId, now)) {
+        await RemoveStudyCycle();
+      }
     }
 
     const endTime = Date.now() + durationSeconds * 1000;
@@ -656,6 +730,7 @@ export default function TimerScreen() {
       sessionId,
       sessionType,
       taskId,
+      returnTaskId,
       durationSeconds,
       endTime,
     });
@@ -684,6 +759,7 @@ export default function TimerScreen() {
     await startSession({
       sessionType: selectedSessionType,
       taskId: selectedSessionType === 'focus' ? (tId ?? null) : null,
+      returnTaskId: selectedSessionType === 'focus' ? null : (returnTaskId ?? null),
       durationSeconds: totalSeconds,
     });
   }, [
@@ -694,20 +770,27 @@ export default function TimerScreen() {
     selectedSessionType,
     showDurationPicker,
     startSession,
+    returnTaskId,
     tId,
   ]);
 
-  const handleStartShortBreak = React.useCallback(() => {
+  const handleStartBreak = React.useCallback(() => {
+    const nextBreakType = postSessionPrompt?.nextBreakType ?? 'short_break';
+    const durationMinutes =
+      nextBreakType === 'long_break'
+        ? DEFAULT_LONG_BREAK_DURATION_MINUTES
+        : DEFAULT_SHORT_BREAK_DURATION_MINUTES;
+
     setPostSessionPrompt(null);
     router.replace({
       pathname: '/task/timer',
       params: {
-        sessionType: 'short_break',
-        durationMinutes: String(DEFAULT_SHORT_BREAK_DURATION_MINUTES),
-        returnTaskId: tId ?? undefined,
+        sessionType: nextBreakType,
+        durationMinutes: String(durationMinutes),
+        returnTaskId: postSessionPrompt?.returnTaskId ?? tId ?? undefined,
       },
     });
-  }, [tId]);
+  }, [postSessionPrompt, tId]);
 
   const handleContinueSameTask = React.useCallback(() => {
     if (!postSessionPrompt?.returnTaskId) {
@@ -1092,8 +1175,8 @@ export default function TimerScreen() {
           </Text>
           <Text style={styles.fixedDurationDescription}>
             {selectedSessionType === 'focus'
-              ? 'This sprint uses the default focus duration so you can begin immediately.'
-              : 'This session uses a fixed duration so you can move straight into the next step.'}
+              ? 'This sprint uses a focused default duration so it is easy to sit down, begin, and keep your study session structured.'
+              : 'This break has a fixed duration so rest stays intentional and your study rhythm does not get lost.'}
           </Text>
           {selectedSessionType === 'focus' ? (
             <TouchableOpacity onPress={handleChooseCustomDuration} style={styles.durationPickerLink}>
@@ -1118,8 +1201,8 @@ export default function TimerScreen() {
         </Text>
         <Text style={styles.taskDescription}>
           {currentSessionType === 'focus'
-            ? task?.description || 'Focus on this task until the timer ends.'
-            : 'Use this timer as a real break before starting the next focus session.'}
+            ? task?.description || 'Give this task your full attention for one clear stretch so studying feels deliberate, not scattered.'
+            : 'Take a proper pause here so the next focus session starts with better energy and structure.'}
         </Text>
       </Animated.View>
 
@@ -1134,14 +1217,18 @@ export default function TimerScreen() {
             </Text>
             <Text style={styles.postSessionBody}>
               {postSessionPrompt.completedSessionType === 'focus'
-                ? 'Take a short break, jump straight into another sprint on the same task, or head back to the dashboard.'
-                : 'Jump back into the same task or head back to the dashboard.'}
+                ? `Take a ${postSessionPrompt.nextBreakType === 'long_break' ? 'long' : 'short'} break to keep your study session structured, jump straight into another sprint on the same task, or head back to the dashboard.`
+                : 'Continue with the same task when you are ready, or head back to the dashboard if you want to pause the study flow here.'}
             </Text>
 
             {postSessionPrompt.completedSessionType === 'focus' ? (
               <>
-                <TouchableOpacity onPress={handleStartShortBreak} style={styles.postSessionPrimaryButton}>
-                  <Text style={styles.postSessionPrimaryButtonText}>Start short break</Text>
+                <TouchableOpacity onPress={handleStartBreak} style={styles.postSessionPrimaryButton}>
+                  <Text style={styles.postSessionPrimaryButtonText}>
+                    {postSessionPrompt.nextBreakType === 'long_break'
+                      ? 'Start long break'
+                      : 'Start short break'}
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleContinueSameTask} style={styles.postSessionSecondaryButton}>
                   <Text style={styles.postSessionSecondaryButtonText}>Continue same task</Text>

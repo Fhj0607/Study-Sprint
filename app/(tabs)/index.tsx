@@ -1,6 +1,5 @@
 import {
   GetActiveSession,
-  RemoveActiveSession,
   type ActiveSession,
 } from '@/lib/asyncStorage';
 import type { SessionType } from '@/lib/types';
@@ -8,6 +7,7 @@ import { formatDate, formatDateTime } from '@/lib/date';
 import { RegisterForLocalNotificationsAsync } from '@/lib/notifications';
 import { CheckAssignmentCompletion } from '@/lib/progress';
 import { DEFAULT_FOCUS_DURATION_MINUTES } from '@/lib/sessionDefaults';
+import { finalizeStoredSession } from '@/lib/sessionLifecycle';
 import { supabase } from "@/lib/supabase";
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Session } from '@supabase/supabase-js';
@@ -182,7 +182,7 @@ export default function HomeScreen() {
     );
 
     if (secondsLeft <= 0) {
-      await RemoveActiveSession();
+      await finalizeStoredSession('expired', storedSprint);
       setActiveSprint(null);
       setActiveSprintTaskTitle(null);
       setActiveSprintTaskDesc(null);
@@ -501,7 +501,7 @@ export default function HomeScreen() {
       setRemainingSeconds(secondsLeft);
 
       if (secondsLeft <= 0) {
-        void RemoveActiveSession();
+        void finalizeStoredSession('expired', activeSprint);
         setActiveSprint(null);
         setActiveSprintTaskTitle(null);
         setActiveSprintTaskDesc(null);
@@ -563,7 +563,7 @@ export default function HomeScreen() {
     const secondsLeft = Math.ceil((storedSession.endTime - Date.now()) / 1000);
 
     if (secondsLeft <= 0) {
-      await RemoveActiveSession();
+      await finalizeStoredSession('expired', storedSession);
       router.push({
         pathname: '/task/timer',
         params: {
@@ -597,7 +597,7 @@ export default function HomeScreen() {
           text: 'Start sprint',
           style: 'destructive',
           onPress: async () => {
-            await RemoveActiveSession();
+            await finalizeStoredSession('cancelled', storedSession);
             router.push({
               pathname: '/task/timer',
               params: {

@@ -3,13 +3,22 @@ import type { SessionType } from '@/lib/types';
 
 const notificationKey = (aId: string) => `assignment_notification_${aId}`;
 const activeSprintKey = 'active_sprint';
+const studyCycleKey = 'study_cycle';
 
 export type ActiveSession = {
   sessionId: string;
   sessionType: SessionType;
   taskId: string | null;
+  returnTaskId?: string | null;
   durationSeconds: number;
   endTime: number;
+};
+
+export type StudyCycle = {
+  taskId: string;
+  completedFocusSessions: number;
+  lastCompletedSessionType: SessionType;
+  lastCompletedAt: number;
 };
 
 export async function SaveAssignmentNotificationId(aId: string, notificationId: string) {
@@ -40,4 +49,22 @@ export async function GetActiveSession() {
 
 export async function RemoveActiveSession() {
   await AsyncStorage.removeItem(activeSprintKey);
+}
+
+export async function SaveStudyCycle(studyCycle: StudyCycle) {
+  await AsyncStorage.setItem(studyCycleKey, JSON.stringify(studyCycle));
+}
+
+export async function GetStudyCycle() {
+  const studyCycle = await AsyncStorage.getItem(studyCycleKey);
+
+  if (!studyCycle) {
+    return null;
+  }
+
+  return JSON.parse(studyCycle) as StudyCycle;
+}
+
+export async function RemoveStudyCycle() {
+  await AsyncStorage.removeItem(studyCycleKey);
 }
