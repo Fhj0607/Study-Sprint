@@ -9,6 +9,8 @@ After that, the scope shifted into reliability work because the remaining highes
 
 Later in the same work session, the focus narrowed again into wording and flow polish on the timer screen. The break and sprint descriptions were rewritten so they better reflect the app's goal of supporting structured study behavior, and two runtime regressions reported after testing were fixed in the timer flow itself.
 
+After that, the work shifted into the remaining first-time-user gap from the vision plan. The login and tab flows were tightened so incomplete users are routed into guided setup automatically, and the first guided sprint was changed into a short onboarding demo instead of dropping a new user straight into a normal 25-minute timer.
+
 ---
 
 ## #ImplementedFeatures
@@ -111,6 +113,38 @@ The fixes were:
 
 ---
 
+### #OnboardingRoutingGuard
+Closed the remaining onboarding-routing gap so incomplete users are pushed into guided setup instead of being left in the dashboard tabs:
+- added `lib/setupStatus.ts`
+- moved the shared setup-completion rule into one place
+- updated:
+  - `app/login.tsx`
+  - `app/(tabs)/_layout.tsx`
+  - `app/(tabs)/index.tsx`
+  - `app/(tabs)/subjects.tsx`
+- setup completion is now checked from the same source in login, tab entry, dashboard, and subjects
+
+This made the setup flow enforceable instead of depending on the user noticing the guided-setup card in the dashboard.
+
+---
+
+### #FirstSprintDemoFlow
+Adjusted the first guided sprint so the first-time experience better matches the low-friction vision goal:
+- extended `lib/asyncStorage.ts`
+- added:
+  - `GetSetupSprintDemoUsed`
+  - `SaveSetupSprintDemoUsed`
+- updated `app/task/upsertTask.tsx` and `app/setup.tsx` so the first setup sprint uses:
+  - `durationSeconds: '5'`
+  - `onboardingDemo: 'true'`
+- updated `app/task/timer.tsx` so that onboarding-demo sprint completion:
+  - skips the normal session-complete modal
+  - routes directly to the dashboard
+
+This keeps the first sprint short enough to demonstrate the flow without locking a new user into a full focus block, while still falling back to the normal focus-session duration after the demo has been used once.
+
+---
+
 ## #ProblemsAndSetbacks
 
 ### #SessionTruthDivergence
@@ -127,6 +161,13 @@ After the cycle and reliability changes landed, manual testing surfaced two smal
 
 These were not architectural problems, but they were both important because they affected the user's immediate understanding of the timer flow after interacting with it.
 
+### #OnboardingFlowMismatch
+Manual testing later uncovered a smaller flow mismatch inside guided setup:
+- the first task created in setup could still open the timer with the normal 25-minute focus default
+- returning to the guided-setup screen afterwards could then launch a different 5-second demo path
+
+The problem was that task creation in setup and the setup screen itself were using two different timer-entry paths. The fix was to make those paths share the same one-time onboarding-demo rule.
+
 ---
 
 ## #CurrentState
@@ -142,8 +183,11 @@ The app now supports:
 - more intentional sprint and break wording on the timer screen
 - preserved task-return context across long-break completion
 - corrected timer-screen recovery after cancelling a focus session
+- automatic routing into guided setup for incomplete users after login and tab entry
+- a one-time onboarding sprint demo that uses a 5-second timer
+- direct dashboard routing after the onboarding demo completes, without the normal completion modal
 
-At this point, the biggest remaining work in this area is no longer basic feature completion. It is verifying the edge cases that depend on real runtime behavior, such as backgrounding, reopen timing, and cross-screen recovery under actual app usage.
+At this point, the timer/session work is closer to a finished loop, and the first-time-user path is more in line with the intended product vision. The biggest remaining work is now less about feature gaps and more about making sure the final report and final app behavior stay aligned.
 
 ---
 
@@ -163,8 +207,19 @@ exited successfully
 
 npm run lint
 exited successfully
+
+npx tsc --noEmit
+exited successfully
+
+npm run lint
+exited successfully
 ```
 
 Manual testing also confirmed most of the intended behavior from today's scope. Two regressions were found during that testing, both inside the timer flow, and both were fixed in the same work session:
 - blank sprint-duration state after cancelling a focus session
 - incorrect dashboard return after pressing `Continue with same task` following a long break
+
+Later manual testing also validated the guided-setup flow after the onboarding fixes:
+- incomplete users were routed into guided setup instead of landing in dashboard tabs
+- the first setup sprint used the intended 5-second demo timer
+- after the demo finished, the user was sent directly to the dashboard without seeing the normal session-complete modal

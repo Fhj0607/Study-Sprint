@@ -1,4 +1,5 @@
 import { defaultStyles } from '@/constants/defaultStyles';
+import { SaveSetupSprintDemoUsed } from '@/lib/asyncStorage';
 import { CheckAssignmentCompletion } from '@/lib/progress';
 import { supabase } from '@/lib/supabase';
 import type { Task } from '@/lib/types';
@@ -125,9 +126,14 @@ export default function UpsertTask() {
     SetIsSaving(false);
 
     if (!isEditMode && isSetupFlow && result.data?.tId) {
+      await SaveSetupSprintDemoUsed(data.user.id);
       router.replace({
         pathname: '/task/timer',
-        params: { tId: result.data.tId },
+        params: {
+          tId: result.data.tId,
+          durationSeconds: '5',
+          onboardingDemo: 'true',
+        },
       });
       return;
     }

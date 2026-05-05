@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { SessionType } from '@/lib/types';
 
 const notificationKey = (aId: string) => `assignment_notification_${aId}`;
+const setupSprintDemoKey = (userId: string) => `setup_sprint_demo_${userId}`;
 const activeSprintKey = 'active_sprint';
 const studyCycleKey = 'study_cycle';
 
@@ -67,4 +68,13 @@ export async function GetStudyCycle() {
 
 export async function RemoveStudyCycle() {
   await AsyncStorage.removeItem(studyCycleKey);
+}
+
+export async function GetSetupSprintDemoUsed(userId: string) {
+  const value = await AsyncStorage.getItem(setupSprintDemoKey(userId));
+  return value === 'true';
+}
+
+export async function SaveSetupSprintDemoUsed(userId: string) {
+  await AsyncStorage.setItem(setupSprintDemoKey(userId), 'true');
 }

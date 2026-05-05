@@ -1,9 +1,16 @@
-import { GetActiveSession, type ActiveSession } from '@/lib/asyncStorage';
+import {
+  GetActiveSession,
+  GetSetupSprintDemoUsed,
+  SaveSetupSprintDemoUsed,
+  type ActiveSession,
+} from '@/lib/asyncStorage';
+import { DEFAULT_FOCUS_DURATION_MINUTES } from '@/lib/sessionDefaults';
+import { getSetupStatus, type SetupStepKey } from '@/lib/setupStatus';
 import { finalizeStoredSession } from '@/lib/sessionLifecycle';
 import { supabase } from '@/lib/supabase';
 import { Session } from '@supabase/supabase-js';
 import { Redirect, Stack, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 type SetupState = {
@@ -39,8 +46,6 @@ const SETUP_STEPS = [
       'Begin one focused study session so the app immediately turns into action instead of setup.',
   },
 ] as const;
-
-type SetupStepKey = (typeof SETUP_STEPS)[number]['key'];
 
 export default function SetupScreen() {
   const {
@@ -89,37 +94,10 @@ export default function SetupScreen() {
       return;
     }
 
-    const [storedActiveSession, subjectResult, assignmentResult, taskResult, focusSessionResult] =
-      await Promise.all([
-        GetActiveSession(),
-        supabase
-          .from('subjects')
-          .select('sId')
-          .eq('uId', session.user.id)
-          .order('lastChanged', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        supabase
-          .from('assignments')
-          .select('aId')
-          .eq('uId', session.user.id)
-          .order('lastChanged', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        supabase
-          .from('tasks')
-          .select('tId')
-          .eq('uId', session.user.id)
-          .order('lastChanged', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        supabase
-          .from('sprint_sessions')
-          .select('sessionId', { count: 'exact', head: true })
-          .eq('userId', session.user.id)
-          .eq('sessionType', 'focus')
-          .eq('status', 'completed'),
-      ]);
+    const [storedActiveSession, status] = await Promise.all([
+      GetActiveSession(),
+      getSetupStatus(session.user.id),
+    ]);
 
     if (storedActiveSession && storedActiveSession.endTime <= Date.now()) {
       await finalizeStoredSession('expired', storedActiveSession);
@@ -129,10 +107,10 @@ export default function SetupScreen() {
     }
 
     setSetupState({
-      subjectId: subjectIdParam ?? subjectResult.data?.sId ?? null,
-      assignmentId: assignmentIdParam ?? assignmentResult.data?.aId ?? null,
-      taskId: taskIdParam ?? taskResult.data?.tId ?? null,
-      completedFocusSessions: focusSessionResult.count ?? 0,
+      subjectId: subjectIdParam ?? status.subjectId,
+      assignmentId: assignmentIdParam ?? status.assignmentId,
+      taskId: taskIdParam ?? status.taskId,
+      completedFocusSessions: status.completedFocusSessions,
     });
   }, [assignmentIdParam, session?.user.id, subjectIdParam, taskIdParam]);
 
@@ -142,7 +120,7 @@ export default function SetupScreen() {
     }, [loadSetupState])
   );
 
-  const currentStep = useMemo<SetupStepKey>(() => {
+  const currentStep: SetupStepKey = (() => {
     if (!setupState.subjectId) {
       return 'subject';
     }
@@ -156,7 +134,7 @@ export default function SetupScreen() {
     }
 
     return 'sprint';
-  }, [setupState]);
+  })();
 
   const isSetupComplete =
     setupState.taskId !== null && setupState.completedFocusSessions > 0;
@@ -223,14 +201,28 @@ export default function SetupScreen() {
       setActiveSession(null);
     }
 
+    const shouldUseDemoSprint = session?.user.id
+      ? !(await GetSetupSprintDemoUsed(session.user.id))
+      : false;
+
+    if (shouldUseDemoSprint && session?.user.id) {
+      await SaveSetupSprintDemoUsed(session.user.id);
+    }
+
     router.push({
       pathname: '/task/timer',
-      params: {
-        tId: setupState.taskId,
-        durationSeconds: '5',
-      },
+      params: shouldUseDemoSprint
+        ? {
+            tId: setupState.taskId,
+            durationSeconds: '5',
+            onboardingDemo: 'true',
+          }
+        : {
+            tId: setupState.taskId,
+            durationMinutes: String(DEFAULT_FOCUS_DURATION_MINUTES),
+          },
     });
-  }, [currentStep, isSetupComplete, setupState]);
+  }, [currentStep, isSetupComplete, session?.user.id, setupState]);
 
   const primaryLabel = isSetupComplete
     ? 'Go to dashboard'

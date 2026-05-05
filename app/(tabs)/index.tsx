@@ -7,11 +7,12 @@ import { formatDate, formatDateTime } from '@/lib/date';
 import { RegisterForLocalNotificationsAsync } from '@/lib/notifications';
 import { CheckAssignmentCompletion } from '@/lib/progress';
 import { DEFAULT_FOCUS_DURATION_MINUTES } from '@/lib/sessionDefaults';
+import { getSetupStatus } from '@/lib/setupStatus';
 import { finalizeStoredSession } from '@/lib/sessionLifecycle';
 import { supabase } from "@/lib/supabase";
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Session } from '@supabase/supabase-js';
-import { router, Stack, useFocusEffect } from "expo-router";
+import { Redirect, router, Stack, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
@@ -164,6 +165,7 @@ export default function HomeScreen() {
   const [isFlowInfoVisible, setIsFlowInfoVisible] = useState(false);
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
   const [subjectCount, setSubjectCount] = useState(0);
+  const [needsSetup, setNeedsSetup] = useState<boolean | null>(null);
 
   const loadActiveSprint = useCallback(async () => {
     const storedSprint = await GetActiveSession();
@@ -479,6 +481,25 @@ export default function HomeScreen() {
     }
   }, [session]);
 
+  useEffect(() => {
+    const loadSetupGate = async () => {
+      if (!session?.user.id) {
+        setNeedsSetup(false);
+        return;
+      }
+
+      try {
+        const setupStatus = await getSetupStatus(session.user.id);
+        setNeedsSetup(!setupStatus.isSetupComplete);
+      } catch {
+        setNeedsSetup(true);
+      }
+    };
+
+    setNeedsSetup(null);
+    void loadSetupGate();
+  }, [session?.user.id]);
+
   useFocusEffect(
     useCallback(() => {
       void loadActiveSprint();
@@ -610,6 +631,14 @@ export default function HomeScreen() {
       ]
     );
   }, []);
+
+  if (session && needsSetup === null) {
+    return null;
+  }
+
+  if (needsSetup) {
+    return <Redirect href="/setup" />;
+  }
 
   return (
     <View className="flex-1 bg-app-bg">

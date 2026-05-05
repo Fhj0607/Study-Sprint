@@ -1,3 +1,4 @@
+import { getSetupStatus } from "@/lib/setupStatus";
 import { supabase } from "@/lib/supabase";
 import { Session } from "@supabase/supabase-js";
 import * as Notifications from 'expo-notifications';
@@ -32,6 +33,8 @@ function UseNotificationObserver() {
 export default function TabLayout() {
   const [session, SetSession] = useState<Session | null>(null)
   const [loading, SetLoading] = useState(true);
+  const [setupChecked, setSetupChecked] = useState(false);
+  const [needsSetup, setNeedsSetup] = useState(false);
 
     UseNotificationObserver();
 
@@ -51,12 +54,38 @@ export default function TabLayout() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  if (loading) {
+  useEffect(() => {
+    const checkSetupStatus = async () => {
+      if (!session?.user.id) {
+        setNeedsSetup(false);
+        setSetupChecked(true);
+        return;
+      }
+
+      try {
+        const setupStatus = await getSetupStatus(session.user.id);
+        setNeedsSetup(!setupStatus.isSetupComplete);
+      } catch {
+        setNeedsSetup(true);
+      } finally {
+        setSetupChecked(true);
+      }
+    };
+
+    setSetupChecked(false);
+    void checkSetupStatus();
+  }, [session?.user.id]);
+
+  if (loading || !setupChecked) {
     return null;
   }
 
   if (!session) {
     return <Redirect href="/login" />;
+  }
+
+  if (needsSetup) {
+    return <Redirect href="/setup" />;
   }
 
   return (

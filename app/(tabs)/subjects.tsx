@@ -1,9 +1,10 @@
 import { SUBJECT_COLORS } from '@/lib/subjectColors';
+import { getSetupStatus } from '@/lib/setupStatus';
 import { supabase } from '@/lib/supabase';
 import { Subject } from '@/lib/types';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Session } from '@supabase/supabase-js';
-import { router, Stack, useFocusEffect } from 'expo-router';
+import { Redirect, router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 
@@ -36,6 +37,7 @@ export default function Subjects() {
   const [subjects, SetSubjects] = useState<Subject[]>([]);
   const [session, SetSession] = useState<Session | null>(null);
   const [isFlowInfoVisible, setIsFlowInfoVisible] = useState(false);
+  const [needsSetup, setNeedsSetup] = useState<boolean | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -50,6 +52,25 @@ export default function Subjects() {
 
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    const loadSetupGate = async () => {
+      if (!session?.user.id) {
+        setNeedsSetup(false);
+        return;
+      }
+
+      try {
+        const setupStatus = await getSetupStatus(session.user.id);
+        setNeedsSetup(!setupStatus.isSetupComplete);
+      } catch {
+        setNeedsSetup(true);
+      }
+    };
+
+    setNeedsSetup(null);
+    void loadSetupGate();
+  }, [session?.user.id]);
 
   const GetSubjects = useCallback(async () => {
     if (!session?.user.id) return;
@@ -75,6 +96,14 @@ export default function Subjects() {
       }
     }, [GetSubjects, session])
   );
+
+  if (session && needsSetup === null) {
+    return null;
+  }
+
+  if (needsSetup) {
+    return <Redirect href="/setup" />;
+  }
 
   return (
     <View className="flex-1 bg-app-bg">

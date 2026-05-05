@@ -139,14 +139,16 @@ export default function TimerScreen() {
   const cancelHoldIdRef = React.useRef(0);
   const cancelHoldStartedAtRef = React.useRef(0);
 
-  const { tId, sessionType: sessionTypeParam, durationMinutes, durationSeconds, returnTaskId, chooseDuration } = useLocalSearchParams<{
+  const { tId, sessionType: sessionTypeParam, durationMinutes, durationSeconds, returnTaskId, chooseDuration, onboardingDemo } = useLocalSearchParams<{
     tId?: string;
     sessionType?: SessionType;
     durationMinutes?: string;
     durationSeconds?: string;
     returnTaskId?: string;
     chooseDuration?: string;
+    onboardingDemo?: string;
   }>();
+  const isOnboardingDemo = onboardingDemo === 'true';
   const timerOverlayHeight = Math.max(containerHeight, 1);
   const timerOverlayOffscreenY = timerOverlayHeight + 1000;
   const selectedSessionType: SessionType = sessionTypeParam ?? 'focus';
@@ -484,13 +486,18 @@ export default function TimerScreen() {
 
           setIsRunning(false);
           resetSessionValues();
+          await finalizeSprintSession('completed', completedSession);
+
+          if (isOnboardingDemo && completedSessionType === 'focus') {
+            router.replace('/');
+            return;
+          }
+
           setPostSessionPrompt({
             completedSessionType,
             returnTaskId: completedReturnTaskId,
             nextBreakType,
           });
-
-          await finalizeSprintSession('completed', completedSession);
         })();
       });
     });
@@ -502,6 +509,7 @@ export default function TimerScreen() {
     currentSessionType,
     finalizeSprintSession,
     focusModeAnimation,
+    isOnboardingDemo,
     resetSessionValues,
     syncStudyCycleAfterCompletion,
     taskDetailsAnimation,

@@ -1,3 +1,4 @@
+import { getSetupStatus } from "@/lib/setupStatus";
 import { supabase } from "@/lib/supabase";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
@@ -49,7 +50,7 @@ export default function Login() {
 
     SetIsLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password
     });
@@ -61,7 +62,17 @@ export default function Login() {
       return;
     }
 
-    router.replace("/");
+    if (!data.user?.id) {
+      Alert.alert("Login failed, missing user session after sign-in");
+      return;
+    }
+
+    try {
+      const setupStatus = await getSetupStatus(data.user.id);
+      router.replace(setupStatus.isSetupComplete ? "/" : "/setup");
+    } catch {
+      router.replace("/setup");
+    }
   }
 
   const inputClassName =
