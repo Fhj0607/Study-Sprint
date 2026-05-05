@@ -11,6 +11,8 @@ Later in the same work session, the focus narrowed again into wording and flow p
 
 After that, the work shifted into the remaining first-time-user gap from the vision plan. The login and tab flows were tightened so incomplete users are routed into guided setup automatically, and the first guided sprint was changed into a short onboarding demo instead of dropping a new user straight into a normal 25-minute timer.
 
+The final pass of the day was smaller, but still tied to the same product goal. The help modals on the dashboard and subjects screens were rewritten so they explain the focus-session and break rhythm in a more human way instead of sounding like a rigid step list.
+
 ---
 
 ## #ImplementedFeatures
@@ -145,6 +147,22 @@ This keeps the first sprint short enough to demonstrate the flow without locking
 
 ---
 
+### #HelpModalFlowCopy
+Updated the help modals on the dashboard and subjects screens so they explain the intended study rhythm more naturally:
+- updated:
+  - `app/(tabs)/index.tsx`
+  - `app/(tabs)/subjects.tsx`
+- rewrote the flow-step descriptions so they feel less mechanical
+- added clearer wording about the actual intended loop:
+  - focus session
+  - short pause
+  - focus session again
+  - longer pause after a few rounds
+
+This better matches the app's tone and makes the focus/break cycle easier to understand from inside the product itself.
+
+---
+
 ## #ProblemsAndSetbacks
 
 ### #SessionTruthDivergence
@@ -186,6 +204,7 @@ The app now supports:
 - automatic routing into guided setup for incomplete users after login and tab entry
 - a one-time onboarding sprint demo that uses a 5-second timer
 - direct dashboard routing after the onboarding demo completes, without the normal completion modal
+- help modals that explain the study loop in a more natural way
 
 At this point, the timer/session work is closer to a finished loop, and the first-time-user path is more in line with the intended product vision. The biggest remaining work is now less about feature gaps and more about making sure the final report and final app behavior stay aligned.
 
@@ -213,6 +232,12 @@ exited successfully
 
 npm run lint
 exited successfully
+
+npx tsc --noEmit
+exited successfully
+
+npm run lint
+exited successfully
 ```
 
 Manual testing also confirmed most of the intended behavior from today's scope. Two regressions were found during that testing, both inside the timer flow, and both were fixed in the same work session:
@@ -223,3 +248,5 @@ Later manual testing also validated the guided-setup flow after the onboarding f
 - incomplete users were routed into guided setup instead of landing in dashboard tabs
 - the first setup sprint used the intended 5-second demo timer
 - after the demo finished, the user was sent directly to the dashboard without seeing the normal session-complete modal
+
+The final UI pass for the day was lighter and did not change behavior, but static verification still confirmed the help-modal copy changes landed cleanly on both tabs screens.

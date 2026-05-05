@@ -60,22 +60,22 @@ const FLOW_STEPS = [
   {
     label: '1',
     title: 'Subject',
-    description: 'A subject is the top-level container for one course or area you are studying.',
+    description: 'Start with the broad area you are studying, like one course or one exam you are preparing for.',
   },
   {
     label: '2',
     title: 'Assignment',
-    description: 'Each subject contains assignments like projects, exercises, or exam prep blocks.',
+    description: 'Inside that, add the bigger piece of work you want to move forward, like a project, a problem set, or revision block.',
   },
   {
     label: '3',
     title: 'Task',
-    description: 'Assignments are broken down into tasks so you always have one concrete thing to work on.',
+    description: 'Then break it down into one task that feels concrete enough to begin without overthinking it.',
   },
   {
     label: '4',
     title: 'Sprint',
-    description: 'A sprint is one focused work session tied to a single task. After it ends, you can take a break, continue the same task, or return to the dashboard.',
+    description: 'That task is what you bring into a focus session. After a sprint, you take a short pause, then come back to the same kind of focused work. After a few rounds, the app gives you a longer pause so the rhythm still feels sustainable.',
   },
 ] as const;
 
@@ -712,7 +712,7 @@ export default function HomeScreen() {
               </View>
 
               <Text className="text-[15px] leading-[22px] text-[#52606D]">
-                Build your work from the big container down to one concrete task, then use sprints and breaks to move that work forward.
+                The idea is to make getting started feel lighter. You decide what you are studying, narrow it down to one clear task, and then let the app carry you through a simple rhythm of focus and recovery.
               </Text>
 
               <ScrollView
@@ -748,9 +748,9 @@ export default function HomeScreen() {
                 <Text className="mt-[6px] text-base font-bold text-[#1F2933]">
                   {'Subject -> Assignment -> Task -> Sprint'}
                 </Text>
-                <Text className="mt-2 text-sm leading-[20px] text-[#52606D]">
-                  The dashboard then helps you resume an active session, start the next sprint, or review recent study progress.
-                </Text>
+              <Text className="mt-2 text-sm leading-[20px] text-[#52606D]">
+                  In practice, that usually becomes focus session, short pause, focus session again, and eventually a longer pause when you have done a few solid rounds.
+              </Text>
               </View>
 
               <Pressable
