@@ -256,6 +256,7 @@ export default function UpsertAssignment() {
               <View className="mb-5">
                 <Text className={labelClassName}>Title</Text>
                 <TextInput
+                  testID = "assignment-title-input"
                   className={inputClassName}
                   placeholder="Enter assignment title"
                   placeholderTextColor="#9CA3AF"
@@ -325,6 +326,7 @@ export default function UpsertAssignment() {
               </Pressable>
 
               <Pressable
+                testID = "upsert-assignment-button"
                 className={`h-14 items-center justify-center rounded-2xl ${
                   isSaving ? 'bg-accent-disabled' : 'bg-accent'
                 }`}

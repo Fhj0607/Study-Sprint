@@ -4,14 +4,9 @@ import { Subject } from '@/lib/types';
 import { Session } from '@supabase/supabase-js';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+
+import type { SubjectColor } from '@/lib/subjectColors';
 
 export default function Subjects() {
   const [subjects, SetSubjects] = useState<Subject[]>([]);
@@ -43,11 +38,15 @@ export default function Subjects() {
 
     SetIsLoading(true);
 
+    SetIsLoading(true);
+
     const { data, error } = await supabase
       .from('subjects')
       .select('*')
       .eq('uId', session.user.id)
       .order('lastChanged', { ascending: false });
+
+    SetIsLoading(false);  
 
     if (error) {
       Alert.alert('Subjects could not be fetched, please try again');
@@ -133,6 +132,13 @@ export default function Subjects() {
       </Pressable>
     );
   };
+  if (isLoading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-app-bg">
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
 
   return (
     <View className="flex-1 bg-app-bg">

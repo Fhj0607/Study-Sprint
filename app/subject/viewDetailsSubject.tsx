@@ -23,7 +23,7 @@ export default function ViewDetailsSubject() {
   const [subject, SetSubject] = useState<Subject | null>(null);  
   const [assignments, SetAssignments] = useState<Assignment[]>([]);
   const [session, SetSession] = useState<Session | null>(null);
-  const [isLoading, SetIsLoading] = useState(true);
+  const [isLoading, SetIsLoading] = useState(false);
 
   const assignmentSections = [
     {
@@ -49,11 +49,15 @@ export default function ViewDetailsSubject() {
   }, []);
 
   const GetSubject = async (subjectId: string) => {
+    SetIsLoading(true);
+
     const { data, error } = await supabase
       .from('subjects')
       .select('*')
       .eq('sId', subjectId)
       .single();
+
+    SetIsLoading(false);  
 
     if (error) {
       Alert.alert('Subject could not be fetched, please try again');
@@ -64,11 +68,15 @@ export default function ViewDetailsSubject() {
   };
 
   const GetAssignments = async (subjectId: string) => {
+    SetIsLoading(true);
+
     const { data, error } = await supabase
       .from('assignments')
       .select('*')
       .eq('sId', subjectId)
       .order('deadline', { ascending: true });
+
+    SetIsLoading(false);  
 
     if (error) {
       Alert.alert('Assignments could not be fetched, please try again');
@@ -118,20 +126,6 @@ export default function ViewDetailsSubject() {
       });
     }, [session, sId])
   );
-
-  useEffect(() => {
-    const test = async () => {
-      try {
-        const { data, error } = await supabase.from('subjects').select('*').limit(1);
-        console.log('test data:', data);
-        console.log('test error:', error);
-      } catch (err) {
-        console.log('test crashed:', err);
-      }
-    };
-
-    test();
-  }, []);
 
   const DeleteSubject = async (subjectId: string) => {
     Alert.alert(
@@ -391,7 +385,7 @@ export default function ViewDetailsSubject() {
                   className="mr-3 flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-subtle py-3"
                   onPress={() =>
                     router.push({
-                      pathname: '/subject/upsertSubject',
+                      pathname: '../subject/upsertSubject',
                       params: { sId: subject.sId },
                     })
                   }
@@ -402,6 +396,7 @@ export default function ViewDetailsSubject() {
                 </Pressable>
 
                 <Pressable
+                  testID="delete-subject-button"
                   className="flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-surface py-3"
                   onPress={() => DeleteSubject(subject.sId)}
                 >
@@ -416,7 +411,7 @@ export default function ViewDetailsSubject() {
               className="mb-6 mt-5 h-14 items-center justify-center rounded-2xl bg-accent"
               onPress={() =>
                 router.push({
-                  pathname: '/assignment/upsertAssignment',
+                  pathname: '../assignment/upsertAssignment',
                   params: { sId: subject.sId },
                 })
               }
@@ -502,7 +497,7 @@ export default function ViewDetailsSubject() {
                     className="mr-3 flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-subtle py-3"
                     onPress={() =>
                       router.push({
-                        pathname: '/assignment/upsertAssignment',
+                        pathname: '../assignment/upsertAssignment',
                         params: { aId: item.aId },
                       })
                     }

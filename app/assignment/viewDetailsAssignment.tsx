@@ -6,7 +6,7 @@ import type { Assignment, Task } from '@/lib/types';
 import { Session } from '@supabase/supabase-js';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, SectionList, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, SectionList, Text, View } from "react-native";
 
 
 export default function ViewDetailsAssignment() {
@@ -14,6 +14,7 @@ export default function ViewDetailsAssignment() {
   const [assignment, SetAssignment] = useState<Assignment | null>(null);
   const [tasks, SetTasks] = useState<Task[]>([]);
   const [session, SetSession] = useState<Session | null>(null);
+  const [isLoading, SetIsLoading] = useState(false);
   const [subjectMeta, setSubjectMeta] = useState({
     title: 'No Subject',
     color: 'slate' as SubjectColor,
@@ -34,14 +35,17 @@ export default function ViewDetailsAssignment() {
   [])
 
   const GetAssignment = async (assignmentId: string) => {
-  const { data, error } = await supabase
-    .from('assignments')
-    .select('*')
-    .eq('aId', assignmentId)
-    .single();
+    SetIsLoading(true);
+
+    const { data, error } = await supabase
+      .from('assignments')
+      .select('*')
+      .eq('aId', assignmentId)
+      .single();
+
+    SetIsLoading(false);  
 
     if (error || !data) {
-      console.log('GetAssignment error:', error);
       Alert.alert('Assignment could not be fetched, please try again');
       return;
     }
@@ -49,14 +53,17 @@ export default function ViewDetailsAssignment() {
     SetAssignment(data);
 
     if (data.sId) {
+      SetIsLoading(true);
+
       const { data: subjectData, error: subjectError } = await supabase
         .from('subjects')
         .select('title, color')
         .eq('sId', data.sId)
         .single();
 
+      SetIsLoading(false);
+
       if (subjectError || !subjectData) {
-        console.log('GetSubjectMeta error:', subjectError);
         setSubjectMeta({
           title: 'Unknown Subject',
           color: 'slate'
@@ -72,7 +79,11 @@ export default function ViewDetailsAssignment() {
   };
 
   const GetTasks = async (aId: string) => { 
+    SetIsLoading(true);
+
     const { data, error } = await supabase.from("tasks").select("*").eq("aId", aId);
+
+    SetIsLoading(false);
 
     if (error) {
       Alert.alert("Tasks could not be fetched, please try again");
@@ -203,6 +214,14 @@ export default function ViewDetailsAssignment() {
     totalTasks === 0
       ? 0
       : Math.round((completedTasks / totalTasks) * 100);
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-app-bg">
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
 
   if (!assignment) {
     return (
@@ -348,7 +367,7 @@ export default function ViewDetailsAssignment() {
                   className="mr-3 flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-subtle py-3"
                   onPress={() =>
                     router.push({
-                      pathname: '/assignment/upsertAssignment',
+                      pathname: '../assignment/upsertAssignment',
                       params: { aId: assignment.aId },
                     })
                   }
@@ -357,6 +376,7 @@ export default function ViewDetailsAssignment() {
                 </Pressable>
 
                 <Pressable
+                  testID="delete-assignment-button"
                   className="flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-surface py-3"
                   onPress={() => DeleteAssignment(assignment.aId)}
                 >
@@ -371,7 +391,7 @@ export default function ViewDetailsAssignment() {
               className="mb-6 mt-5 h-14 items-center justify-center rounded-2xl bg-accent"
               onPress={() =>
                 router.push({
-                  pathname: '/task/createTask',
+                  pathname: '../task/upsertTask',
                   params: { aId: assignment.aId },
                 })
               }
@@ -453,7 +473,7 @@ export default function ViewDetailsAssignment() {
                     className="mr-3 flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-subtle py-3"
                     onPress={() =>
                       router.push({
-                        pathname: '/task/editTask',
+                        pathname: '../task/upsertTask',
                         params: { tId: item.tId },
                       })
                     }

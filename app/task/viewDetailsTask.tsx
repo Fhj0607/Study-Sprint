@@ -6,13 +6,14 @@ import type { Task } from '@/lib/types';
 import { Session } from '@supabase/supabase-js';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 
 export default function ViewDetailsTask() {
   const { tId } = useLocalSearchParams<{ tId: string }>();
 
   const [task, SetTask] = useState<Task | null>(null);
   const [session, SetSession] = useState<Session | null>(null);
+  const [isLoading, SetIsLoading] = useState(false);
   const [contextMeta, setContextMeta] = useState({
     subjectTitle: 'No Subject',
     assignmentTitle: 'No Assignment',
@@ -30,14 +31,17 @@ export default function ViewDetailsTask() {
   }, []);
 
   const GetTask = async (taskId: string) => {
+    SetIsLoading(true);
+
     const { data, error } = await supabase
       .from('tasks')
       .select('*')
       .eq('tId', taskId)
       .single();
+    
+    SetIsLoading(false);    
 
     if (error || !data) {
-      console.log('GetTask error:', error);
       Alert.alert('Task could not be fetched, please try again');
       return;
     }
@@ -45,14 +49,17 @@ export default function ViewDetailsTask() {
     SetTask(data);
 
     if (data.aId) {
+      SetIsLoading(true);
+
       const { data: assignmentData, error: assignmentError } = await supabase
         .from('assignments')
         .select('title, sId')
         .eq('aId', data.aId)
         .single();
 
+      SetIsLoading(false);    
+
       if (assignmentError || !assignmentData) {
-        console.log('GetTaskAssignment error:', assignmentError);
         setContextMeta({
           subjectTitle: 'Unknown Subject',
           assignmentTitle: 'Unknown Assignment',
@@ -62,14 +69,17 @@ export default function ViewDetailsTask() {
       }
 
       if (assignmentData.sId) {
+        SetIsLoading(true);
+
         const { data: subjectData, error: subjectError } = await supabase
           .from('subjects')
           .select('title, color')
           .eq('sId', assignmentData.sId)
           .single();
 
+        SetIsLoading(false);  
+
         if (subjectError || !subjectData) {
-          console.log('GetTaskSubject error:', subjectError);
           setContextMeta({
             subjectTitle: 'Unknown Subject',
             assignmentTitle: assignmentData.title ?? 'Unknown Assignment',
@@ -137,6 +147,14 @@ export default function ViewDetailsTask() {
   };
 
   const colorSet = getSubjectColorSet(contextMeta.subjectColor);
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-app-bg">
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
 
   if (!task) {
     return (
@@ -263,7 +281,7 @@ export default function ViewDetailsTask() {
               className="mr-3 flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-subtle py-3"
               onPress={() =>
                 router.push({
-                  pathname: '/task/editTask',
+                  pathname: '../task/upsertTask',
                   params: { tId: task.tId },
                 })
               }
@@ -274,6 +292,7 @@ export default function ViewDetailsTask() {
             </Pressable>
 
             <Pressable
+              testID="delete-task-button"
               className="flex-1 items-center justify-center rounded-2xl border border-app-border bg-app-surface py-3"
               onPress={() => DeleteTask(task.tId)}
             >
