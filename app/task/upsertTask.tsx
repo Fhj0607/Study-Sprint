@@ -181,6 +181,7 @@ export default function UpsertTask() {
               <View className="mb-5">
                 <Text className={labelClassName}>Title</Text>
                 <TextInput
+                  testID="task-title-input"
                   className={inputClassName}
                   placeholder="Enter task title"
                   placeholderTextColor="#9CA3AF"
@@ -237,6 +238,7 @@ export default function UpsertTask() {
               </Pressable>
 
               <Pressable
+                testID="upsert-task-button"
                 className={`h-14 items-center justify-center rounded-2xl ${
                   isSaving ? 'bg-accent-disabled' : 'bg-accent'
                 }`}
