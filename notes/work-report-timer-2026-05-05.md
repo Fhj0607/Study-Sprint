@@ -15,6 +15,8 @@ The final pass of the day was smaller, but still tied to the same product goal. 
 
 After that, one final navigation-polish pass was added on the tabs layout itself. The bottom tabs were given explicit icons so the app's primary navigation reads faster at a glance and feels less unfinished.
 
+After the branch work was merged back into `main`, one more cleanup pass was needed. That merge left multiple screen files in a syntactically broken state, so the final work shifted away from feature work and into restoring the current main branch to a usable state before report-focused delivery work.
+
 ---
 
 ## #ImplementedFeatures
@@ -177,6 +179,23 @@ This was a small UI polish pass, but it improves immediate navigation clarity an
 
 ---
 
+### #MainBranchMergeCleanup
+Repaired merge-related breakage after switching back to `main`:
+- fixed `app/(tabs)/subjects.tsx`
+- fixed `app/subject/viewDetailsSubject.tsx`
+- rebuilt `app/task/viewDetailsTask.tsx` into a consistent working version
+
+The merge had left these files with duplicated blocks, broken hook structure, and invalid JSX. The cleanup work focused on restoring the intended screen behavior rather than changing product scope.
+
+The result was:
+- subjects screen logic restored to a valid loading/setup/render flow
+- subject details screen header and progress area reconstructed
+- task details screen restored with working context, study activity, and sprint-start actions
+
+This was not new feature work, but it was necessary delivery work because the main branch was no longer in a reliable edit/test state.
+
+---
+
 ## #ProblemsAndSetbacks
 
 ### #SessionTruthDivergence
@@ -200,6 +219,13 @@ Manual testing later uncovered a smaller flow mismatch inside guided setup:
 
 The problem was that task creation in setup and the setup screen itself were using two different timer-entry paths. The fix was to make those paths share the same one-time onboarding-demo rule.
 
+### #PostMergeCodeBreakage
+The final setback of the day came after the branch merge itself rather than from the timer/session work.
+
+Several files on `main` were left in a partially merged state with duplicated code fragments and broken JSX structure. That meant the next pass could not start from feature verification alone, because basic app screens were no longer parseable.
+
+The practical fix was to repair those files directly first, then re-run targeted verification on the restored app files before deciding whether any real feature regressions were still present.
+
 ---
 
 ## #CurrentState
@@ -220,6 +246,7 @@ The app now supports:
 - direct dashboard routing after the onboarding demo completes, without the normal completion modal
 - help modals that explain the study loop in a more natural way
 - explicit tab icons that make dashboard and subjects easier to distinguish at a glance
+- repaired `main`-branch versions of the subjects, subject-details, and task-details screens after merge corruption
 
 At this point, the timer/session work is closer to a finished loop, and the first-time-user path is more in line with the intended product vision. The biggest remaining work is now less about feature gaps and more about making sure the final report and final app behavior stay aligned.
 
@@ -268,3 +295,13 @@ The final UI pass for the day was lighter and did not change behavior, but the r
 - explicit `MaterialIcons` import in the tabs layout
 - `dashboard` icon for the dashboard tab
 - `menu-book` icon for the subjects tab
+
+The final repair pass on `main` was verified separately:
+- `npx eslint app/(tabs)/subjects.tsx app/subject/viewDetailsSubject.tsx app/task/viewDetailsTask.tsx`
+- `git diff --check`
+- no remaining merge markers were found in `app/`, `lib/`, `components/`, or `notes/`
+
+One broader static check still failed afterwards:
+- `npx tsc --noEmit`
+
+That remaining failure was no longer caused by the repaired app screens. The reported errors were instead in the test setup under `__tests__/`, where Jest/testing-library types and modules were not currently configured in this branch.

@@ -364,7 +364,7 @@ export default function TimerScreen() {
     [pressedButtonAnimation]
   );
 
-  const resetSessionValues = React.useCallback(() => {
+  const resetSessionValues = React.useCallback((options?: { preservePostSessionPrompt?: boolean }) => {
     sessionStartedAtRef.current = null;
     sessionDurationMsRef.current = 0;
     cancelHoldActiveRef.current = false;
@@ -376,7 +376,9 @@ export default function TimerScreen() {
     setTimerOverlayVisible(false);
     setTimeRemaining(0);
     setCurrentSessionType(selectedSessionType);
-    setPostSessionPrompt(null);
+    if (!options?.preservePostSessionPrompt) {
+      setPostSessionPrompt(null);
+    }
     setIsRunning(false);
   }, [cancelOverlayAnimation, selectedSessionType, timerAnimation, timerOverlayOffscreenY]);
 
@@ -484,20 +486,20 @@ export default function TimerScreen() {
             completedReturnTaskId
           );
 
-          setIsRunning(false);
-          resetSessionValues();
-          await finalizeSprintSession('completed', completedSession);
-
           if (isOnboardingDemo && completedSessionType === 'focus') {
+            resetSessionValues();
+            void finalizeSprintSession('completed', completedSession);
             router.replace('/');
             return;
           }
 
+          resetSessionValues({ preservePostSessionPrompt: true });
           setPostSessionPrompt({
             completedSessionType,
             returnTaskId: completedReturnTaskId,
             nextBreakType,
           });
+          void finalizeSprintSession('completed', completedSession);
         })();
       });
     });
