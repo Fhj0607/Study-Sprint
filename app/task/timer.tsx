@@ -2,6 +2,7 @@ import {
   GetActiveSession,
   RemoveActiveSession,
   SaveActiveSession,
+  type ActiveSession,
 } from '@/lib/asyncStorage';
 import {
   DEFAULT_FOCUS_DURATION_MINUTES,
@@ -289,8 +290,11 @@ export default function TimerScreen() {
     outputRange: [20, 0],
   });
 
-  const finalizeSprintSession = React.useCallback(async (finalStatus: 'completed' | 'cancelled' | 'expired') => {
-    const activeSession = await GetActiveSession();
+  const finalizeSprintSession = React.useCallback(async (
+    finalStatus: 'completed' | 'cancelled' | 'expired',
+    activeSessionOverride?: ActiveSession | null
+  ) => {
+    const activeSession = activeSessionOverride ?? await GetActiveSession();
 
     if (!activeSession) {
       return;
@@ -377,11 +381,7 @@ export default function TimerScreen() {
 
   const finishTimer = React.useCallback(() => {
     clearCountdownInterval();
-    const completedSessionType = currentSessionType;
-    const completedReturnTaskId =
-      completedSessionType === 'focus' ? (tId ?? null) : (returnTaskId ?? null);
-
-    void finalizeSprintSession('completed');
+    const activeSessionPromise = GetActiveSession();
 
     Animated.parallel([
       Animated.timing(countdownAnimation, {
@@ -412,12 +412,23 @@ export default function TimerScreen() {
           useNativeDriver: true,
         }),
       ]).start(() => {
-        setIsRunning(false);
-        resetSessionValues();
-        setPostSessionPrompt({
-          completedSessionType,
-          returnTaskId: completedReturnTaskId,
-        });
+        void (async () => {
+          const completedSession = await activeSessionPromise;
+          const completedSessionType = completedSession?.sessionType ?? currentSessionType;
+          const completedReturnTaskId =
+            completedSessionType === 'focus'
+              ? (completedSession?.taskId ?? tId ?? null)
+              : (returnTaskId ?? null);
+
+          setIsRunning(false);
+          resetSessionValues();
+          setPostSessionPrompt({
+            completedSessionType,
+            returnTaskId: completedReturnTaskId,
+          });
+
+          await finalizeSprintSession('completed', completedSession);
+        })();
       });
     });
   }, [

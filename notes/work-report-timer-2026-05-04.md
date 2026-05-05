@@ -9,6 +9,8 @@ Later in the same work session, the scope narrowed further into the timer screen
 
 The scope also expanded into the help-flow modal on the dashboard and subjects screens so its explanation of the app structure matches the way the app now actually works.
 
+After that, one more timer-flow bug surfaced in the post-session overlay itself. A completed break could still reuse the focus-session action menu, which incorrectly offered the user another break instead of only the actions that make sense after a break has ended.
+
 ---
 
 ## #ImplementedFeatures
@@ -120,6 +122,22 @@ This keeps the help flow aligned with the app's actual current behavior instead 
 
 ---
 
+### #PostBreakMenuFix
+Fixed a timer completion bug where a finished break could still produce the same action menu as a finished focus session:
+- the post-session overlay had to know which session type actually just ended
+- the previous flow could fall back to local screen state instead of the persisted active session
+- this caused a break completion to sometimes be treated like a focus completion
+- changed the completion flow so it reads the stored active session before building the post-session prompt
+- reused that same session snapshot when finalizing the session in Supabase
+
+This means the overlay now behaves correctly after a break finishes:
+- it does not offer `Start short break` again
+- it instead keeps the narrower break-finished path:
+  - continue with the same task
+  - go back to the dashboard
+
+---
+
 ## #ProblemsAndSetbacks
 
 ### #PickerStateReset
@@ -130,6 +148,13 @@ The first implementation reopened the picker route correctly, but it also update
 - the selected value could reset unexpectedly after momentum ended
 
 The fix was to keep picker selection local to `app/task/timer.tsx` while the picker is open, and only use route params to decide whether the picker mode should be shown in the first place.
+
+### #PostSessionTypeMismatch
+Another issue appeared after the post-session focus actions were introduced.
+
+The completion overlay already had separate UI for `focus` and `break` sessions, but the value used to choose between them was not robust enough. In practice, that made it possible for a finished break to reopen the focus-style menu and incorrectly offer another break.
+
+The fix was to derive the completed session type from the persisted active session that had actually been running, rather than relying only on the screen's local state at the moment the animation finished.
 
 ---
 
@@ -146,6 +171,7 @@ The app now supports:
 - an optional custom-duration picker path instead of a forced picker
 - explicit post-focus next actions for break, continue, or dashboard return
 - a stable picker implementation that keeps its selected value while the user scrolls
+- a corrected break-finished overlay that no longer offers another pause when the completed session was already a break
 - a help-flow explanation that now matches the real sprint, break, dashboard, and subjects flow more closely
 
 At this point, the timer flow is more aligned with the vision requirement that starting work should feel fast, focused, and low-friction rather than like a chain of setup steps.
@@ -156,10 +182,15 @@ At this point, the timer flow is more aligned with the vision requirement that s
 
 Static checks were run after the implementation work and after the picker bug fix:
 
+An additional static check was also run after the post-break menu fix:
+
 ```text
 npx tsc --noEmit
 exited successfully
 
 npm run lint
+exited successfully
+
+npx tsc --noEmit
 exited successfully
 ```
