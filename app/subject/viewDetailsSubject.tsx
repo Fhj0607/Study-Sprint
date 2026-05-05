@@ -233,6 +233,7 @@ export default function ViewDetailsSubject() {
         <Stack.Screen
           options={{
             title: 'Subject Details',
+            headerTitleAlign: 'center',
           }}
         />
 
@@ -344,6 +345,11 @@ export default function ViewDetailsSubject() {
                 </View>
               </View>
 
+              <View className="mt-5">
+                <View className="mb-2 flex-row items-center justify-between">
+                  <Text className="text-sm font-semibold text-text-secondary">
+                    Assignments completed
+                  </Text>
               {totalAssignments > 0 ? (
                 <View className="mt-5">
                   <View className="mb-2 flex-row items-center justify-between">
@@ -537,7 +543,9 @@ export default function ViewDetailsSubject() {
                 {section.emptyMessage}
               </Text>
               <Text className="mt-1 text-center text-sm text-text-muted">
-                Assignments for this subject will show up here.
+                {assignments.length === 0
+                  ? 'Create the first assignment to give this subject a real study path.'
+                  : 'Assignments for this subject will show up here.'}
               </Text>
             </View>
           ) : (

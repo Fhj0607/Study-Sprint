@@ -1,0 +1,14 @@
+networks:
+  caddy_shared:
+    external: true
+services:
+  signup-confirmation:
+    image: nginx:alpine
+    container_name: study-sprint-signup-confirmation
+    restart: always
+    expose:
+      - "80"
+    networks:
+      - caddy_shared
+    volumes:
+      - ./site:/usr/share/nginx/html:ro

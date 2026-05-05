@@ -1,12 +1,46 @@
+import { getSetupStatus } from "@/lib/setupStatus";
 import { supabase } from "@/lib/supabase";
 import { router } from "expo-router";
-import { useState } from "react";
-import { Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, TouchableWithoutFeedback, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Alert, Keyboard, KeyboardAvoidingView, KeyboardEvent, Platform, Pressable, ScrollView, Text, TextInput, TouchableWithoutFeedback, View } from "react-native";
 
 export default function Login() {
   const [email, SetEmail] = useState('');
   const [password, SetPassword] = useState('');  
   const [isLoading, SetIsLoading] = useState(false);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const handleKeyboardShow = (event: KeyboardEvent) => {
+      setIsKeyboardVisible(true);
+
+      const keyboardHeight = event.endCoordinates.height;
+      const offsetBaseline = Platform.OS === 'ios' ? 180 : 140;
+      const nextScrollOffset = Math.max(0, keyboardHeight - offsetBaseline);
+
+      scrollViewRef.current?.scrollTo({
+        y: nextScrollOffset,
+        animated: true,
+      });
+    };
+
+    const handleKeyboardHide = () => {
+      setIsKeyboardVisible(false);
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    };
+
+    const showSubscription = Keyboard.addListener(showEvent, handleKeyboardShow);
+    const hideSubscription = Keyboard.addListener(hideEvent, handleKeyboardHide);
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   const login = async () => {
     if(email.trim() === '' || password.trim() === '') {
@@ -16,7 +50,7 @@ export default function Login() {
 
     SetIsLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password
     });
@@ -28,7 +62,17 @@ export default function Login() {
       return;
     }
 
-    router.replace("/");
+    if (!data.user?.id) {
+      Alert.alert("Login failed, missing user session after sign-in");
+      return;
+    }
+
+    try {
+      const setupStatus = await getSetupStatus(data.user.id);
+      router.replace(setupStatus.isSetupComplete ? "/" : "/setup");
+    } catch {
+      router.replace("/setup");
+    }
   }
 
   const inputClassName =
@@ -38,17 +82,21 @@ export default function Login() {
   <KeyboardAvoidingView
     className="flex-1 bg-app-bg"
     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
   >
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <ScrollView
+        ref={scrollViewRef}
         className="flex-1"
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         contentContainerStyle={{
           flexGrow: 1,
-          justifyContent: 'center',
+          justifyContent: isKeyboardVisible ? 'flex-start' : 'center',
           paddingHorizontal: 20,
-          paddingTop: 64,
-          paddingBottom: 32,
+          paddingTop: isKeyboardVisible ? 24 : 64,
+          paddingBottom: isKeyboardVisible ? 96 : 32,
         }}
       >
         <View className="mb-10">
@@ -69,6 +117,16 @@ export default function Login() {
           <Text className="mt-2 text-sm leading-5 text-text-secondary">
             Continue your study workflow.
           </Text>
+
+          <View className="mt-5 rounded-2xl border border-app-border bg-app-subtle p-4">
+            <Text className="text-sm font-bold text-text-main">
+              Your study path stays with your account
+            </Text>
+            <Text className="mt-1 text-sm leading-5 text-text-secondary">
+              Subjects, assignments, tasks, and tracked sprint progress follow
+              you after you sign in.
+            </Text>
+          </View>
 
           <View className="mb-5 mt-6">
             <Text className="mb-2 text-sm font-semibold text-text-secondary">
@@ -97,6 +155,9 @@ export default function Login() {
               secureTextEntry
               value={password}
               onChangeText={SetPassword}
+              onFocus={() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+              }}
             />
           </View>
 

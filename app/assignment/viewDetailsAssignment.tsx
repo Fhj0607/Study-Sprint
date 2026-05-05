@@ -229,6 +229,7 @@ export default function ViewDetailsAssignment() {
         <Stack.Screen
           options={{
             title: 'Details',
+            headerTitleAlign: 'center',
           }}
         />
 
@@ -326,6 +327,37 @@ export default function ViewDetailsAssignment() {
                     </View>
                   </View>
 
+                 <View className="mt-5">
+                  <View className="mb-2 flex-row items-center justify-between">
+                    <Text className="text-sm font-semibold text-text-secondary">
+                      Tasks completed
+                    </Text>
+
+                    <Text className="text-sm font-bold text-text-main">
+                      {completedTasks}/{totalTasks}
+                    </Text>
+                  </View>
+
+                  <View className="h-3 overflow-hidden rounded-full bg-app-subtle">
+                    <View
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${progress}%`,
+                        backgroundColor: colorSet.strong,
+                      }}
+                    />
+                  </View>
+
+                  <Text className="mt-2 text-xs font-medium text-text-secondary">
+                    {remainingTasks === 0
+                      ? 'All tasks complete'
+                      : `${remainingTasks} task${remainingTasks === 1 ? '' : 's'} remaining`}
+                  </Text>
+
+                  <Text className="mt-1 text-xs text-text-muted">
+                    Based only on completed tasks in this assignment.
+                  </Text>
+                </View>
                   {totalTasks > 0 ? (
                     <View className="mt-5">
                       <View className="mb-2 flex-row items-center justify-between">
@@ -514,7 +546,9 @@ export default function ViewDetailsAssignment() {
                 {section.emptyMessage}
               </Text>
               <Text className="mt-1 text-center text-sm text-text-muted">
-                Tasks for this assignment will show up here.
+                {tasks.length === 0
+                  ? 'Create the first task so this assignment turns into one clear next action.'
+                  : 'Tasks for this assignment will show up here.'}
               </Text>
             </View>
           ) : (

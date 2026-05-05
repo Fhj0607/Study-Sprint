@@ -1,4 +1,5 @@
 import { defaultStyles } from '@/constants/defaultStyles';
+import { SaveSetupSprintDemoUsed } from '@/lib/asyncStorage';
 import { CheckAssignmentCompletion } from '@/lib/progress';
 import { supabase } from '@/lib/supabase';
 import type { Task } from '@/lib/types';
@@ -19,12 +20,14 @@ import {
 } from 'react-native';
 
 export default function UpsertTask() {
-  const { tId, aId: routeAId } = useLocalSearchParams<{
+  const { tId, aId: routeAId, flow } = useLocalSearchParams<{
     tId?: string;
     aId?: string;
+    flow?: string;
   }>();
 
   const isEditMode = Boolean(tId);
+  const isSetupFlow = flow === 'setup';
 
   const [title, SetTitle] = useState('');
   const [description, SetDescription] = useState('');
@@ -100,7 +103,7 @@ export default function UpsertTask() {
     const result =
       isEditMode && tId
         ? await supabase.from('tasks').update(payload).eq('tId', tId)
-        : await supabase.from('tasks').insert(payload);
+        : await supabase.from('tasks').insert(payload).select().single();
 
     if (result.error) {
       SetIsSaving(false);
@@ -121,6 +124,19 @@ export default function UpsertTask() {
     }
 
     SetIsSaving(false);
+
+    if (!isEditMode && isSetupFlow && result.data?.tId) {
+      await SaveSetupSprintDemoUsed(data.user.id);
+      router.replace({
+        pathname: '/task/timer',
+        params: {
+          tId: result.data.tId,
+          durationSeconds: '5',
+          onboardingDemo: 'true',
+        },
+      });
+      return;
+    }
 
     Alert.alert(
       isEditMode ? 'Task successfully updated!' : 'Task successfully created!'
@@ -148,6 +164,7 @@ export default function UpsertTask() {
         options={{
           title: isEditMode ? 'Edit Task' : 'Create Task',
           headerTitleStyle: defaultStyles.title,
+          headerTitleAlign: 'center',
         }}
       />
 
@@ -183,7 +200,7 @@ export default function UpsertTask() {
                 <TextInput
                   testID="task-title-input"
                   className={inputClassName}
-                  placeholder="Enter task title"
+                  placeholder={isSetupFlow ? 'e.g. Solve questions 1-3' : 'Enter task title'}
                   placeholderTextColor="#9CA3AF"
                   value={title}
                   onChangeText={SetTitle}
@@ -195,7 +212,11 @@ export default function UpsertTask() {
                 <Text className={labelClassName}>Description</Text>
                 <TextInput
                   className={`${inputClassName} min-h-28`}
-                  placeholder="Add a short description"
+                  placeholder={
+                    isSetupFlow
+                      ? 'e.g. Work through the first three tasks without notes'
+                      : 'Add a short description'
+                  }
                   placeholderTextColor="#9CA3AF"
                   value={description}
                   onChangeText={SetDescription}
