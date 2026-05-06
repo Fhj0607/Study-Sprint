@@ -1,5 +1,4 @@
 import { formatDate, formatDateTime } from '@/lib/date';
-import { CheckSubjectCompletion } from '@/lib/progress';
 import { SUBJECT_COLORS, type SubjectColor } from '@/lib/subjectColors';
 import { supabase } from '@/lib/supabase';
 import type { Assignment } from '@/lib/types';
@@ -102,12 +101,6 @@ export default function ViewDetailsSubject() {
       return;
     }
 
-    try {
-      await CheckSubjectCompletion(assignment.sId);
-    } catch {
-      Alert.alert('Failed to update subject status');
-    }
-
     await GetAssignments(assignment.sId);
     await GetSubject(assignment.sId);
   };
@@ -179,14 +172,6 @@ export default function ViewDetailsSubject() {
             if (error) {
               Alert.alert('Assignment could not be deleted, please try again');
               return;
-            }
-
-            if (subjectId) {
-              try {
-                await CheckSubjectCompletion(subjectId);
-              } catch {
-                Alert.alert('Failed to update subject status');
-              }
             }
 
             await GetAssignments(subjectId);

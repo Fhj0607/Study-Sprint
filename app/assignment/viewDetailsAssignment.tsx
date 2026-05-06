@@ -1,5 +1,5 @@
 import { formatDate, formatDateTime } from '@/lib/date';
-import { CheckAssignmentCompletion, CheckSubjectCompletion } from '@/lib/progress';
+import { CheckAssignmentCompletion } from '@/lib/progress';
 import { getSubjectColorSet, type SubjectColor } from '@/lib/subjectColors';
 import { supabase } from '@/lib/supabase';
 import type { Assignment, Task } from '@/lib/types';
@@ -123,16 +123,6 @@ export default function ViewDetailsAssignment() {
             }
 
             Alert.alert("Assignment deleted successfully!");
-
-            const sId = assignment?.sId;
-
-            if (sId) {
-              try {
-                await CheckSubjectCompletion(sId);
-              } catch {
-                Alert.alert("Failed to update subject status");
-              }
-            }
 
             router.back();
           }
