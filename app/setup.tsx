@@ -250,6 +250,16 @@ export default function SetupScreen() {
         options={{
           title: 'Guided Setup',
           headerTitleAlign: 'center',
+          headerRight: () => (
+            <Pressable
+              className="rounded-full bg-app-subtle px-4 py-2"
+              onPress={async () => await supabase.auth.signOut()}
+            >
+              <Text className="text-sm font-semibold text-text-secondary">
+                Logout
+              </Text>
+            </Pressable>
+          ),
         }}
       />
 
