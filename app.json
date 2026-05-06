@@ -21,7 +21,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.teodorsa.StudySprint"
+      "package": "com.softsand.studysprint"
     },
     "web": {
       "output": "static",
