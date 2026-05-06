@@ -1,5 +1,4 @@
 import UpsertAssignment from "@/app/assignment/upsertAssignment";
-import { CheckSubjectCompletion } from "@/lib/progress";
 import { supabase } from "@/lib/supabase";
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { router } from "expo-router";
@@ -26,12 +25,10 @@ jest.mock("expo-router", () => ({
   useFocusEffect: (callback: () => void) => callback(),
 }));
 
-jest.mock("@/lib/progress", () => ({
-  CheckSubjectCompletion: jest.fn(() => Promise.resolve()),
-}));
-
 jest.mock("@/lib/asyncStorage", () => ({
   GetAssignmentNotificationId: jest.fn(() => Promise.resolve(null)),
+  SaveAssignmentNotificationId: jest.fn(() => Promise.resolve()),
+  RemoveAssignmentNotificationId: jest.fn(() => Promise.resolve()),
 }));
 
 jest.mock("expo-notifications", () => ({
@@ -94,7 +91,6 @@ test("updates an assignment and navigates back", async () => {
       })
     );
     expect(mockUpdateSingle).toHaveBeenCalled();
-    expect(CheckSubjectCompletion).toHaveBeenCalledWith("subject-123");
     expect(router.back).toHaveBeenCalled();
   });
 });

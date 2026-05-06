@@ -1,5 +1,4 @@
 import ViewDetailsAssignment from "@/app/assignment/viewDetailsAssignment";
-import { CheckSubjectCompletion } from "@/lib/progress";
 import { supabase } from "@/lib/supabase";
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { router } from "expo-router";
@@ -33,10 +32,6 @@ jest.mock("expo-router", () => ({
     const React = require("react");
     React.useEffect(callback, [callback]);
   },
-}));
-
-jest.mock("@/lib/progress", () => ({
-  CheckSubjectCompletion: jest.fn(() => Promise.resolve()),
 }));
 
 jest.mock("@/lib/supabase", () => ({
@@ -92,7 +87,7 @@ jest.mock("@/lib/supabase", () => ({
 
 const alertSpy = jest.spyOn(Alert, "alert");
 
-test("deletes a task and navigates back", async () => {
+test("deletes an assignment and navigates back", async () => {
   mockAssignmentSingle.mockResolvedValue({ 
     data: { 
       aId: "assignment-123",
@@ -126,16 +121,21 @@ test("deletes a task and navigates back", async () => {
     expect.any(Array),
   );
 
-  const alertButtons = alertSpy.mock.calls[0][2];
-  const confirmDeleteButton = alertButtons[1];
+  const alertButtons = alertSpy.mock.calls[0]?.[2];
+  expect(alertButtons).toBeDefined();
+  const confirmDeleteButton = alertButtons?.[1];
+  expect(confirmDeleteButton?.onPress).toBeDefined();
 
-  await confirmDeleteButton.onPress();    
+  if (!confirmDeleteButton?.onPress) {
+    throw new Error("Delete confirmation button missing");
+  }
+
+  await confirmDeleteButton.onPress();
 
   await waitFor(() => {
     expect(supabase.from).toHaveBeenCalledWith("assignments");
     expect(mockAssignmentDelete).toHaveBeenCalled();
     expect(mockAssignmentDeleteEq).toHaveBeenCalledWith("aId", "assignment-123");
-    expect(CheckSubjectCompletion).toHaveBeenCalledWith("subject-123");
     expect(router.back).toHaveBeenCalled();
   });
 });

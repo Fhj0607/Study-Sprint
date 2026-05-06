@@ -1,4 +1,5 @@
 import TabLayout from "@/app/(tabs)/_layout";
+import { getSetupStatus } from "@/lib/setupStatus";
 import { supabase } from "@/lib/supabase";
 import { render, waitFor } from "@testing-library/react-native";
 
@@ -31,6 +32,10 @@ jest.mock("expo-notifications", () => ({
   })),
 }));
 
+jest.mock("@/lib/setupStatus", () => ({
+  getSetupStatus: jest.fn(),
+}));
+
 jest.mock("@/lib/supabase", () => ({
   supabase: {
     auth: {
@@ -48,6 +53,14 @@ jest.mock("@/lib/supabase", () => ({
 
 beforeEach(() => {
   jest.clearAllMocks();
+  (getSetupStatus as jest.Mock).mockResolvedValue({
+    subjectId: "subject-123",
+    assignmentId: "assignment-123",
+    taskId: "task-123",
+    completedFocusSessions: 1,
+    currentStep: "sprint",
+    isSetupComplete: true,
+  });
 });
 
 test("redirects to login if there is no session", async () => {

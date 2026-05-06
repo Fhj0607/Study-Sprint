@@ -102,10 +102,16 @@ test("deletes a subject and navigates back", async () => {
     expect.any(Array),
   );
 
-  const alertButtons = alertSpy.mock.calls[0][2];
-  const confirmDeleteButton = alertButtons[1];
+  const alertButtons = alertSpy.mock.calls[0]?.[2];
+  expect(alertButtons).toBeDefined();
+  const confirmDeleteButton = alertButtons?.[1];
+  expect(confirmDeleteButton?.onPress).toBeDefined();
 
-  await confirmDeleteButton.onPress();    
+  if (!confirmDeleteButton?.onPress) {
+    throw new Error("Delete confirmation button missing");
+  }
+
+  await confirmDeleteButton.onPress();
 
   await waitFor(() => {
     expect(supabase.from).toHaveBeenCalledWith("subjects");

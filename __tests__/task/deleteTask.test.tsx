@@ -19,6 +19,12 @@ const mockSubjectSingle = jest.fn();
 const mockSubjectSelectEq = jest.fn(() => ({ single: mockSubjectSingle }));
 const mockSubjectSelect = jest.fn(() => ({ eq: mockSubjectSelectEq }));
 
+const mockSprintSessionsEqCompleted = jest.fn();
+const mockSprintSessionsEqSessionType = jest.fn(() => ({ eq: mockSprintSessionsEqCompleted }));
+const mockSprintSessionsEqUser = jest.fn(() => ({ eq: mockSprintSessionsEqSessionType }));
+const mockSprintSessionsEqTask = jest.fn(() => ({ eq: mockSprintSessionsEqUser }));
+const mockSprintSessionsSelect = jest.fn(() => ({ eq: mockSprintSessionsEqTask }));
+
 jest.mock("expo-router", () => ({
   router: {
     back: jest.fn(),
@@ -86,6 +92,12 @@ jest.mock("@/lib/supabase", () => ({
         };
       }
 
+      if (table === "sprint_sessions") {
+        return {
+          select: mockSprintSessionsSelect,
+        };
+      }
+
       return {};
     }),
   },
@@ -120,6 +132,7 @@ test("deletes a task and navigates back", async () => {
     },
     error: null,
   });
+  mockSprintSessionsEqCompleted.mockResolvedValue({ count: 0, error: null });
   mockTaskDeleteEq.mockResolvedValue({ error: null, });
 
   const screen = render(<ViewDetailsTask />);
@@ -127,7 +140,7 @@ test("deletes a task and navigates back", async () => {
   await screen.findByText("Read chapter 4");
   await screen.findByText("ikt205g26v");
 
-  fireEvent.press(await screen.findByTestId("delete-task-button"));
+  fireEvent.press(await screen.findByText("Delete"));
 
   expect(alertSpy).toHaveBeenCalledWith(
     "Delete Task",
@@ -135,10 +148,16 @@ test("deletes a task and navigates back", async () => {
     expect.any(Array),
   );
 
-  const alertButtons = alertSpy.mock.calls[0][2];
-  const confirmDeleteButton = alertButtons[1];
+  const alertButtons = alertSpy.mock.calls[0]?.[2];
+  expect(alertButtons).toBeDefined();
+  const confirmDeleteButton = alertButtons?.[1];
+  expect(confirmDeleteButton?.onPress).toBeDefined();
 
-  await confirmDeleteButton.onPress();    
+  if (!confirmDeleteButton?.onPress) {
+    throw new Error("Delete confirmation button missing");
+  }
+
+  await confirmDeleteButton.onPress();
 
   await waitFor(() => {
     expect(supabase.from).toHaveBeenCalledWith("tasks");

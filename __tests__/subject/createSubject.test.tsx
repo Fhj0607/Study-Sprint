@@ -3,7 +3,9 @@ import { supabase } from "@/lib/supabase";
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { router } from "expo-router";
 
-const mockInsert = jest.fn();
+const mockSingle = jest.fn();
+const mockSelect = jest.fn(() => ({ single: mockSingle }));
+const mockInsert = jest.fn(() => ({ select: mockSelect }));
 
 jest.mock("expo-router", () => ({
   router: {
@@ -33,7 +35,14 @@ jest.mock("@/lib/supabase", () => ({
 }));
 
 test("creates a subject and navigates back", async () => {
-  mockInsert.mockResolvedValue({ error: null });
+  mockSingle.mockResolvedValue({
+    data: {
+      sId: "subject-123",
+      title: "ikt205g26v",
+      uId: "user-123",
+    },
+    error: null,
+  });
 
   const screen = render(<UpsertSubject />);
   fireEvent.changeText(screen.getByTestId("subject-title-input"), "ikt205g26v");
@@ -47,6 +56,8 @@ test("creates a subject and navigates back", async () => {
         uId: "user-123",
       })
     );
+    expect(mockSelect).toHaveBeenCalled();
+    expect(mockSingle).toHaveBeenCalled();
     expect(router.back).toHaveBeenCalled();
   });
 });
