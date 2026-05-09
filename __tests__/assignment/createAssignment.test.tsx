@@ -53,8 +53,8 @@ test("creates an assignment and navigates back", async () => {
   mockSingle.mockResolvedValue({ 
     data: { 
         aId: "assignment-123", 
-        title: "create a simple test", 
-        deadline: "",
+        title: "create a simple test",
+        uId: "user-123",
     },
     error: null,
   });
@@ -72,6 +72,8 @@ test("creates an assignment and navigates back", async () => {
         sId: "subject-123",
       })
     );
+    expect(mockSelect).toHaveBeenCalled();
+    expect(mockSingle).toHaveBeenCalled();
     expect(router.back).toHaveBeenCalled();
   });
 });

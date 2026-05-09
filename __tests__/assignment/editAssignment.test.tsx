@@ -21,6 +21,7 @@ jest.mock("expo-router", () => ({
   },
   useLocalSearchParams: () => ({
     aId: "assignment-123",
+    sId: "subject-123",
   }),
   useFocusEffect: (callback: () => void) => callback(),
 }));
@@ -60,7 +61,6 @@ test("updates an assignment and navigates back", async () => {
     data: {
         aId: "assignment-123", 
         title: "create a simple test",
-        deadline: "2026-04-25",
         uId: "user-123",
         sId: "subject-123",
     },
@@ -70,7 +70,6 @@ test("updates an assignment and navigates back", async () => {
     data: {
         aId: "assignment-123", 
         title: "create a harder test",
-        deadline: "2026-04-25",
         uId: "user-123",
     },
     error: null,
@@ -87,9 +86,10 @@ test("updates an assignment and navigates back", async () => {
       expect.objectContaining({
         title: "create a harder test",
         uId: "user-123",
-        deadline: "2026-04-25",
+        sId: "subject-123",
       })
     );
+    expect(mockUpdateEq).toHaveBeenCalledWith("aId", "assignment-123");
     expect(mockUpdateSingle).toHaveBeenCalled();
     expect(router.back).toHaveBeenCalled();
   });
